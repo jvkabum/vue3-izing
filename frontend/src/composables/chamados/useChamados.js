@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { api } from '../services/api'
@@ -200,7 +200,7 @@ export function useTickets() {
     socket.value?.off('ticketDelete', handleTicketDelete)
   }
 
-  // Lifecycle
+  // Lifecycle hooks
   onMounted(() => {
     setupSocketListeners()
   })

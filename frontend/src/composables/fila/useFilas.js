@@ -1,8 +1,8 @@
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useQuasar } from 'quasar'
-import { api } from '../services/api'
-import { useSocket } from './useSocket'
-import { useAuth } from './useAuth'
+import { api } from '@/service/api'
+import { useSocket } from '@/composables/integracoes/useSocket'
+import { useAuth } from '@/composables/autenticacao/useAuth'
 
 export function useQueues() {
   // Composables
@@ -205,7 +205,7 @@ export function useQueues() {
     socket.value?.off('queue:delete', handleQueueDelete)
   }
 
-  // Lifecycle
+  // Lifecycle hooks
   onMounted(() => {
     setupSocketListeners()
     loadQueues()

@@ -73,19 +73,22 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
-import { useAtendimentoTabs } from '../../composables/useAtendimentoTabs'
+import { onMounted, watch } from 'vue'
+import { useAtendimentoTabs } from '../../composables/atendimento/useAtendimentoTabs'
 import ItemTicket from './ItemTicket.vue'
 
-// Props
+// Props e Emits
 const props = defineProps({
   filas: {
+    type: Array,
+    default: () => []
+  },
+  tickets: {
     type: Array,
     default: () => []
   }
 })
 
-// Emits
 const emit = defineEmits(['ticket-click'])
 
 // Composables
@@ -97,13 +100,20 @@ const {
   pendingTickets,
   closedTickets,
   groupTickets,
-  selectFirstAvailableTab
+  selectFirstAvailableTab,
+  updateTickets,
+  setLoading
 } = useAtendimentoTabs()
 
 // Métodos
 const handleTicketClick = (ticket) => {
   emit('ticket-click', ticket)
 }
+
+// Watchers
+watch(() => props.tickets, (newTickets) => {
+  updateTickets(newTickets)
+}, { immediate: true })
 
 // Lifecycle
 onMounted(() => {

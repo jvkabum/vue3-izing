@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { api } from '../services/api'
 import { useSocket } from './useSocket'
@@ -284,7 +284,7 @@ export function useSettings() {
     socket.value?.off('settings:update', handleSettingsUpdate)
   }
 
-  // Lifecycle
+  // Lifecycle hooks
   onMounted(() => {
     setupSocketListeners()
     loadSettings()

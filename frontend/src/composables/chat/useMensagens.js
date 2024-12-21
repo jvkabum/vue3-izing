@@ -1,52 +1,151 @@
-import { ref, onMounted } from 'vue'
-import { api } from '@/services/api'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useQuasar } from 'quasar'
+import { api } from '@/service/api'
+import { useSocket } from '@/composables/integracoes/useSocket'
 
-export function useMessages(ticketId) {
-  const messages = ref([])
-  const loading = ref(false)
-  const hasMore = ref(true)
-  const pageNumber = ref(1)
+export function useMensagens(ticketId) {
+  const $q = useQuasar()
+  const { socket } = useSocket()
 
-  const fetchMessages = async () => {
-    if (loading.value || !hasMore.value) return
+  // Estado
+  const mensagens = ref([])
+  const carregando = ref(false)
+  const temMais = ref(true)
+  const numeroPagina = ref(1)
+  const erro = ref(null)
+
+  // Computed Properties
+  const mensagensOrdenadas = computed(() => {
+    return [...mensagens.value].sort((a, b) => {
+      return new Date(a.createdAt) - new Date(b.createdAt)
+    })
+  })
+
+  const mensagensNaoLidas = computed(() => 
+    mensagens.value.filter(m => !m.read)
+  )
+
+  // Métodos
+  const buscarMensagens = async () => {
+    if (carregando.value || !temMais.value) return
 
     try {
-      loading.value = true
+      carregando.value = true
+      erro.value = null
+
       const { data } = await api.get(`/messages/${ticketId}`, {
         params: {
-          pageNumber: pageNumber.value
+          pageNumber: numeroPagina.value
         }
       })
       
-      messages.value = [...messages.value, ...data.messages]
-      hasMore.value = data.hasMore
-      pageNumber.value++
+      mensagens.value = [...mensagens.value, ...data.messages]
+      temMais.value = data.hasMore
+      numeroPagina.value++
+      return data
+    } catch (err) {
+      erro.value = 'Erro ao carregar mensagens'
+      console.error('Erro ao carregar mensagens:', err)
+      throw err
     } finally {
-      loading.value = false
+      carregando.value = false
     }
   }
 
-  const sendMessage = async (message) => {
+  const enviarMensagem = async (mensagem) => {
     try {
-      loading.value = true
-      await api.post(`/messages/${ticketId}`, message)
-      await fetchMessages()
-      return true
-    } catch (error) {
-      console.error('Erro ao enviar mensagem:', error)
-      return false
+      carregando.value = true
+      erro.value = null
+
+      const { data } = await api.post(`/messages/${ticketId}`, mensagem)
+      mensagens.value.push(data)
+      return data
+    } catch (err) {
+      erro.value = 'Erro ao enviar mensagem'
+      console.error('Erro ao enviar mensagem:', err)
+      throw err
     } finally {
-      loading.value = false
+      carregando.value = false
     }
   }
 
-  onMounted(fetchMessages)
+  const marcarComoLida = async (mensagemId) => {
+    try {
+      const { data } = await api.put(`/messages/${mensagemId}/read`)
+      const mensagem = mensagens.value.find(m => m.id === mensagemId)
+      if (mensagem) {
+        mensagem.read = true
+      }
+      return data
+    } catch (err) {
+      console.error('Erro ao marcar mensagem como lida:', err)
+      throw err
+    }
+  }
+
+  const deletarMensagem = async (mensagemId) => {
+    try {
+      carregando.value = true
+      erro.value = null
+
+      await api.delete(`/messages/${mensagemId}`)
+      mensagens.value = mensagens.value.filter(m => m.id !== mensagemId)
+      return true
+    } catch (err) {
+      erro.value = 'Erro ao deletar mensagem'
+      console.error('Erro ao deletar mensagem:', err)
+      throw err
+    } finally {
+      carregando.value = false
+    }
+  }
+
+  // Socket handlers
+  const handleNovaMensagem = (data) => {
+    if (data.ticketId === ticketId) {
+      mensagens.value.push(data)
+    }
+  }
+
+  const handleMensagemDeletada = (mensagemId) => {
+    mensagens.value = mensagens.value.filter(m => m.id !== mensagemId)
+  }
+
+  // Socket listeners
+  const setupSocketListeners = () => {
+    socket.value?.on('message', handleNovaMensagem)
+    socket.value?.on('messageDelete', handleMensagemDeletada)
+  }
+
+  const removeSocketListeners = () => {
+    socket.value?.off('message', handleNovaMensagem)
+    socket.value?.off('messageDelete', handleMensagemDeletada)
+  }
+
+  // Lifecycle hooks
+  onMounted(() => {
+    setupSocketListeners()
+    buscarMensagens()
+  })
+
+  onUnmounted(() => {
+    removeSocketListeners()
+  })
 
   return {
-    messages,
-    loading,
-    hasMore,
-    fetchMessages,
-    sendMessage
+    // Estado
+    mensagens: mensagensOrdenadas,
+    carregando,
+    temMais,
+    erro,
+
+    // Computed
+    mensagensNaoLidas,
+
+    // Métodos
+    buscarMensagens,
+    enviarMensagem,
+    marcarComoLida,
+    deletarMensagem
   }
-} 
+}
