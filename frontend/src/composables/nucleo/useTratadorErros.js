@@ -1,97 +1,146 @@
 import { ref } from 'vue'
-import { useNotification } from './useNotification'
-import { useApi } from './useApi'
+import { useNotification } from '@/composables/useNotification'
+import { useLogger } from './useLogger'
+import { useRouter } from 'vue-router'
 
 export function useErrorHandler() {
   const { showNotification } = useNotification()
+  const { logError } = useLogger()
+  const router = useRouter()
+  
   const lastError = ref(null)
   const errorCount = ref(0)
-  const errorLog = ref([])
-  const integrationLogs = ref([])
-  const { api } = useApi()
 
+  // Tipos de erro
+  const ERROR_TYPES = {
+    VALIDATION: 'validation',
+    API: 'api',
+    AUTH: 'auth',
+    NETWORK: 'network',
+    BUSINESS: 'business',
+    UNKNOWN: 'unknown'
+  }
+
+  // Determina o tipo de erro
+  const getErrorType = (error) => {
+    if (error.response?.status === 422) return ERROR_TYPES.VALIDATION
+    if (error.response?.status === 401) return ERROR_TYPES.AUTH
+    if (error.response?.status === 403) return ERROR_TYPES.AUTH
+    if (error.message?.includes('Network')) return ERROR_TYPES.NETWORK
+    if (error.isBusinessError) return ERROR_TYPES.BUSINESS
+    return ERROR_TYPES.UNKNOWN
+  }
+
+  // Trata o erro baseado no tipo
   const handleError = (error, context = '') => {
+    const errorType = getErrorType(error)
     const errorInfo = {
+      type: errorType,
       message: error.message || 'Erro desconhecido',
-      stack: error.stack,
       context,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      stack: error.stack,
+      data: {
+        status: error.response?.status,
+        url: error.config?.url,
+        method: error.config?.method
+      }
     }
 
     // Registra o erro
     lastError.value = errorInfo
     errorCount.value++
-    errorLog.value.push(errorInfo)
 
-    // Limita o log a 100 erros
-    if (errorLog.value.length > 100) {
-      errorLog.value.shift()
-    }
+    // Log do erro
+    logError(errorInfo.message, 'error', errorInfo)
 
-    // Notifica o usuário
-    showNotification({
-      type: 'negative',
-      message: errorInfo.message,
-      caption: context ? `Contexto: ${context}` : undefined,
-      timeout: 5000
-    })
-
-    // Log no console em desenvolvimento
-    if (process.env.NODE_ENV === 'development') {
-      console.error('Error:', errorInfo)
+    // Tratamento específico por tipo
+    switch (errorType) {
+      case ERROR_TYPES.VALIDATION:
+        handleValidationError(error)
+        break
+      
+      case ERROR_TYPES.AUTH:
+        handleAuthError(error)
+        break
+      
+      case ERROR_TYPES.NETWORK:
+        handleNetworkError(error)
+        break
+      
+      case ERROR_TYPES.BUSINESS:
+        handleBusinessError(error)
+        break
+      
+      default:
+        handleUnknownError(error)
     }
 
     return errorInfo
   }
 
-  const clearErrors = () => {
-    lastError.value = null
-    errorCount.value = 0
-    errorLog.value = []
+  // Handlers específicos
+  const handleValidationError = (error) => {
+    const messages = Object.values(error.response.data.errors).flat()
+    showNotification({
+      type: 'negative',
+      message: 'Erro de validação',
+      caption: messages.join(', '),
+      timeout: 5000
+    })
   }
 
-  const getErrorsByContext = (context) => {
-    return errorLog.value.filter(error => error.context === context)
+  const handleAuthError = (error) => {
+    showNotification({
+      type: 'negative',
+      message: 'Erro de autenticação',
+      caption: 'Sua sessão expirou. Por favor, faça login novamente.',
+      timeout: 5000
+    })
+    router.push('/login')
   }
 
-  const fetchIntegrationLogs = async (type = null) => {
-    loading.value = true
-    try {
-      const endpoint = type ? `/integration-logs/${type}` : '/integration-logs'
-      const { data } = await api.get(endpoint)
-      integrationLogs.value = data
-      return data
-    } catch (err) {
-      error.value = err.message
-      throw err
-    } finally {
-      loading.value = false
+  const handleNetworkError = (error) => {
+    showNotification({
+      type: 'negative',
+      message: 'Erro de conexão',
+      caption: 'Verifique sua conexão com a internet.',
+      timeout: 5000
+    })
+  }
+
+  const handleBusinessError = (error) => {
+    showNotification({
+      type: 'warning',
+      message: error.message,
+      timeout: 5000
+    })
+  }
+
+  const handleUnknownError = (error) => {
+    showNotification({
+      type: 'negative',
+      message: 'Erro inesperado',
+      caption: 'Por favor, tente novamente mais tarde.',
+      timeout: 5000
+    })
+  }
+
+  // Registra handler global
+  if (process.env.NODE_ENV === 'production') {
+    window.onerror = (message, source, lineno, colno, error) => {
+      handleError(error, 'window.onerror')
     }
-  }
 
-  const clearIntegrationLogs = async (type = null) => {
-    loading.value = true
-    try {
-      const endpoint = type ? `/integration-logs/${type}/clear` : '/integration-logs/clear'
-      await api.post(endpoint)
-      integrationLogs.value = []
-    } catch (err) {
-      error.value = err.message
-      throw err
-    } finally {
-      loading.value = false
-    }
+    window.addEventListener('unhandledrejection', (event) => {
+      handleError(event.reason, 'unhandledrejection')
+    })
   }
 
   return {
     lastError,
     errorCount,
-    errorLog,
-    handleError,
-    clearErrors,
-    getErrorsByContext,
-    integrationLogs,
-    fetchIntegrationLogs,
-    clearIntegrationLogs
+    ERROR_TYPES,
+    handleError
   }
 } 
