@@ -1,148 +1,100 @@
 <template>
-  <div
-    class="flow-menu"
-    ref="tool"
-  >
-    <div
-      v-for="menu  in  menuList"
-      :key="menu.id"
-    >
-      <span
-        class="ef-node-pmenu"
-        @click="menu.open = !menu.open"
+  <div class="node-menu">
+    <div class="menu-title">Componentes</div>
+    
+    <div class="menu-items">
+      <div
+        v-for="item in menuList"
+        :key="item.type"
+        class="menu-item"
+        draggable
+        @dragstart="handleDragStart($event, item)"
       >
-        <q-icon :name="menu.open ? 'mdi-menu-down': 'mdi-menu-up'" />&nbsp;{{menu.name}}
-      </span>
-      <ul
-        v-show="menu.open"
-        class="ef-node-menu-ul"
-      >
-        <draggable
-          @end="end"
-          @start="move"
-          v-model="menu.children"
-          :options="draggableOptions"
-        >
-          <li
-            v-for="subMenu in menu.children"
-            class="ef-node-menu-li"
-            :key="subMenu.id"
-            :type="subMenu.type"
-          >
-            <q-icon :name="subMenu.ico" /> {{subMenu.name}}
-          </li>
-        </draggable>
-      </ul>
+        <q-icon :name="item.ico" size="20px" />
+        <span>{{ item.name }}</span>
+      </div>
     </div>
   </div>
 </template>
-<script>
-import draggable from 'vuedraggable'
 
-var mousePosition = {
-  left: -1,
-  top: -1
+<script setup>
+import { ref } from 'vue'
+
+const menuList = ref([
+  {
+    type: 'message',
+    name: 'Mensagem',
+    ico: 'mdi-message',
+    interactions: [],
+    conditions: []
+  },
+  {
+    type: 'action',
+    name: 'Ação',
+    ico: 'mdi-play-circle',
+    actions: []
+  },
+  {
+    type: 'condition',
+    name: 'Condição',
+    ico: 'mdi-help-circle',
+    conditions: []
+  }
+])
+
+const handleDragStart = (event, item) => {
+  event.dataTransfer.setData('nodeData', JSON.stringify({
+    type: item.type,
+    name: item.name,
+    ico: item.ico,
+    interactions: item.interactions || [],
+    conditions: item.conditions || [],
+    actions: item.actions || []
+  }))
 }
+</script>
 
-export default {
-  data () {
-    return {
-      activeNames: '1',
-      draggableOptions: {
-        preventOnFilter: false,
-        sort: false,
-        disabled: false,
-        ghostClass: 'tt',
-        forceFallback: true
-      },
-      defaultOpeneds: ['1', '2'],
-      menuList: [
-        {
-          id: '1',
-          type: 'group',
-          name: 'Inicial',
-          ico: 'mdi-play',
-          open: true,
-          children: [
-            {
-              id: '11',
-              type: 'timer',
-              name: 'Acesso de dados',
-              ico: 'mdi-clock-outline',
-              style: {}
-            }, {
-              id: '12',
-              type: 'task',
-              name: 'Chamada de interface',
-              ico: 'mdi-speedometer-medium',
-              style: {}
-            }
-          ]
-        },
-        {
-          id: '2',
-          type: 'group',
-          name: 'Final',
-          ico: 'mdi-pause',
-          open: true,
-          children: [
-            {
-              id: '21',
-              type: 'end',
-              name: 'Fim do processo',
-              ico: 'mdi-arrow-right',
-              style: {}
-            }, {
-              id: '22',
-              type: 'over',
-              name: 'Limpeza de dados',
-              ico: 'mdi-close',
-              style: {}
-            }
-          ]
-        }
-      ],
-      nodeMenu: {}
+<style lang="scss" scoped>
+.node-menu {
+  width: 250px;
+  padding: 16px;
+  border-right: 1px solid #ddd;
+
+  .menu-title {
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 16px;
+  }
+
+  .menu-items {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    background: #fff;
+    border: 1px dashed #ddd;
+    border-radius: 4px;
+    cursor: move;
+    transition: all 0.2s;
+
+    &:hover {
+      border-color: #1976d2;
+      background: #f5f5f5;
     }
-  },
-  components: {
-    draggable
-  },
-  created () {
-    if (this.isFirefox()) {
-      document.body.ondrop = function (event) {
-        mousePosition.left = event.layerX
-        mousePosition.top = event.clientY - 50
-        event.preventDefault()
-        event.stopPropagation()
-      }
+
+    i {
+      color: #666;
     }
-  },
-  methods: {
-    getMenuByType (type) {
-      for (let i = 0; i < this.menuList.length; i++) {
-        const children = this.menuList[i].children
-        for (let j = 0; j < children.length; j++) {
-          if (children[j].type === type) {
-            return children[j]
-          }
-        }
-      }
-    },
-    move (evt, a, b, c) {
-      var type = evt.item.attributes.type.nodeValue
-      this.nodeMenu = this.getMenuByType(type)
-    },
-    end (evt, e) {
-      this.$emit('addNode', evt, this.nodeMenu, mousePosition)
-    },
-    isFirefox () {
-      var userAgent = navigator.userAgent
-      if (userAgent.indexOf('Firefox') > -1) {
-        return true
-      }
-      return false
+
+    span {
+      font-size: 14px;
     }
   }
 }
-</script>
+</style>

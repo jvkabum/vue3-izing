@@ -1,16 +1,18 @@
-import Vuelidate from 'vuelidate'
-import VuelidateErrorExtractor from 'vuelidate-error-extractor'
+import { configure } from '@vuelidate/core'
+import { createI18n } from 'vue-i18n'
 
-import linkify from 'vue-linkify'
-
-/* We need messages for validation */
+/* Messages for validation */
 const messages = {
-  required: '{attribute} é obrigatório',
-  email: '{attribute} é inválido.',
-  minValue: '{attribute} deve ser maior que {min}',
-  minLength: '{attribute} deve possui no mínimo {min} carateres',
-  maxLength: '{attribute} deve possui no máximo {min} carateres',
-  validaData: 'Data inválida'
+  pt: {
+    validations: {
+      required: '{field} é obrigatório',
+      email: '{field} é inválido.',
+      minValue: '{field} deve ser maior que {min}',
+      minLength: '{field} deve possui no mínimo {min} carateres',
+      maxLength: '{field} deve possui no máximo {max} carateres',
+      validaData: 'Data inválida'
+    }
+  }
 }
 
 const mapNames = {
@@ -20,13 +22,22 @@ const mapNames = {
   username: 'Usuário'
 }
 
-export default ({
-  Vue
-}) => {
-  Vue.directive('linkified', linkify)
-  Vue.use(Vuelidate)
-  Vue.use(VuelidateErrorExtractor, {
-    messages,
-    attributes: mapNames
-  })
+// Create i18n instance
+const i18n = createI18n({
+  locale: 'pt',
+  messages
+})
+
+// Configure vuelidate
+configure({
+  messageClassName: 'vuelidate-message',
+  validationKeys: mapNames
+})
+
+export { i18n }
+
+// Boot file
+export default ({ app }) => {
+  // Set i18n instance on app
+  app.use(i18n)
 }

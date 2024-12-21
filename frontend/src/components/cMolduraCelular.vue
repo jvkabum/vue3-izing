@@ -1,76 +1,32 @@
 <template>
-  <div style="width: 450px">
-    <div class="main">
-      <div class="inner">
-        <div class="top-bar">
-          <div class="cam">
-          </div>
-          <div class="speaker"></div>
-        </div>
-        <div class="screen">
-          <div>
-            <slot></slot>
-          </div>
-        </div>
-      </div>
+  <div class="mobile-frame">
+    <div class="screen">
+      <slot />
     </div>
   </div>
 </template>
 
-<script>
-export default {
-  name: 'cMolduraCelular'
-}
+<script setup>
+// Não há lógica específica para este componente
 </script>
 
-<style lang="scss">
-.main {
-  width: 400px;
-  height: 450px;
-  background: #000000;
-  padding: 30px;
-  border-radius: 2em;
-  // box-shadow: 90px 10px 120px grey;
+<style lang="scss" scoped>
+.mobile-frame {
+  width: 375px; /* Largura do dispositivo */
+  height: 667px; /* Altura do dispositivo */
+  border: 16px solid #000; /* Borda da moldura */
+  border-radius: 36px; /* Bordas arredondadas */
+  padding: 20px; /* Espaçamento interno */
+  background: #fff; /* Cor de fundo */
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5); /* Sombra */
+  position: relative; /* Posição relativa para elementos internos */
 }
-.inner {
-  border-radius: 20em;
-  width: 390px;
-  height: 430px;
-  background: #fff;
-  padding: 10px;
-  margin-left: -25px;
-  border-top-right-radius: 2em;
-  border-top-left-radius: 2em;
-  border-bottom-left-radius: 2em;
-  border-bottom-right-radius: 2em;
-  margin-top: -24px;
-}
-.cam {
-  background: black;
-  width: 20px;
-  height: 20px;
-  border-radius: 20em;
-  margin-left: 50px;
-}
-.speaker {
-  width: 40px;
-  height: 10px;
-  background: linear-gradient(90deg, grey 20%, white 30%, black 40%);
-  border-radius: 0.5em;
-  margin-left: 165px;
-  margin-top: -12px;
-}
+
 .screen {
-  background: #eeecece1;
-  background-size: cover;
-  width: 380px;
-  height: 370px;
-  margin-top: 10px;
-  margin-left: -5px;
-  overflow: auto;
-}
-.screen div {
-  white-space: normal;
-  word-wrap: break-word;
+  width: 100%;
+  height: 100%;
+  overflow: hidden; /* Oculta o conteúdo que ultrapassa a moldura */
+  border-radius: 20px; /* Bordas arredondadas da tela */
+  background: #f0f0f0; /* Cor de fundo da tela */
 }
 </style>

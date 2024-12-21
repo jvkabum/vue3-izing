@@ -1,256 +1,180 @@
 <template>
-  <div>
-    <q-card
-      flat
-      class="q-pa-sm q-pb-md"
-    >
-      <q-card-section
-        style="min-height: 100px"
-        class="q-pa-none"
+  <div class="media-field">
+    <div class="field-header">
+      <div class="field-title">{{ title }}</div>
+      <q-btn
+        flat
+        round
+        dense
+        icon="add"
+        @click="handleAddMedia"
+      />
+    </div>
+
+    <div class="media-list">
+      <div
+        v-for="(media, index) in modelValue"
+        :key="index"
+        class="media-item"
       >
-        <q-file
-          style="display: none"
-          :loading="loading"
-          rounded
-          label="Mídia composição mensagem"
-          ref="PickerFileMessage"
-          v-model="file"
-          class="col-grow"
-          bg-color="blue-grey-1"
-          input-style="max-height: 30vh"
-          outlined
-          clearable
-          autogrow
-          append
-          :max-files="1"
-          counter
-          :max-file-size="10242880"
-          :max-total-size="10242880"
-          accept=".txt, .jpg, .png, image/jpeg, .jpeg, image/*, .pdf, .doc, .docx, .xls, .xlsx, .zip, .ppt, .pptx, .mp4, .mp3, .ogg, .mpeg"
-          @rejected="onRejectedFiles"
-          @input="getMediaUrl"
-        />
-        <q-btn
-          v-if="!$attrs.element.data.type "
-          icon="mdi-file-plus-outline"
-          @click="$refs.PickerFileMessage.pickFiles()"
-          round
-          flat
-          size="lg"
-          class="bg-grey-3 z-max q-pa-lg absolute-center"
-        />
-
-        <div class="text-center full-width hide-scrollbar no-scroll">
-          <iframe
-            v-if="cMediaUrl && $attrs.element.data.type === 'application/pdf'"
-            frameBorder="0"
-            scrolling="no"
-            style="
-              max-height: 150px;
-              overflow-y: hidden;
-              -ms-overflow-y: hidden;
-            "
-            class="no-scroll hide-scrollbar"
-            :src="cMediaUrl"
-          >
-            Faça download do PDF
-            <!-- alt : <a href="mensagem.cMediaUrl"></a> -->
-          </iframe>
-          <video
-            v-if="cMediaUrl && $attrs.element.data.type.indexOf('video') != -1"
-            :src="cMediaUrl"
-            controls
-            class="q-mt-md"
-            style="objectFit: cover;
-                  width: 330px;
-                  height: 150px;
-                  borderTopLeftRadius: 8px;
-                  borderTopRightRadius: 8px;
-                  borderBottomLeftRadius: 8px;
-                  borderBottomRightRadius: 8px;"
-            type="video/mp4"
-          >
-          </video>
-          <audio
-            v-if="cMediaUrl && $attrs.element.data.type.indexOf('audio') != -1"
-            class="q-mt-md full-width"
-            controls
-          >
-            <source
-              :src="cMediaUrl"
-              type="audio/ogg"
-            />
-          </audio>
-
-          <q-img
-            v-if="cMediaUrl && $attrs.element.data.type.indexOf('image') != -1"
-            @click="abrirModalImagem=true"
-            :src="cMediaUrl"
-            spinner-color="primary"
-            height="150px"
-            width="100%"
-            id="imagemfield"
-            style="cursor: pointer; "
+        <div class="media-preview">
+          <img
+            v-if="media.type.startsWith('image')"
+            :src="media.url"
+            alt="Preview"
           />
-
-        </div>
-        <VueEasyLightbox
-          v-if="cMediaUrl && $attrs.element.data.type.indexOf('image') != -1"
-          :visible="abrirModalImagem"
-          :imgs="cMediaUrl"
-          :index="1"
-          @hide="abrirModalImagem = false;"
-        />
-        <div v-if="getFileIcon($attrs.element.data.name)">
           <q-icon
-            size="80px"
-            :name="getFileIcon($attrs.element.data.name)"
+            v-else-if="media.type.startsWith('video')"
+            name="movie"
+            size="32px"
+          />
+          <q-icon
+            v-else-if="media.type.startsWith('audio')"
+            name="music_note"
+            size="32px"
+          />
+          <q-icon
+            v-else
+            name="insert_drive_file"
+            size="32px"
           />
         </div>
-        <div
-          v-if="cMediaUrl"
-          class="text-bold flex flex-inline flex-center items-center"
-        >
-          <div
-            style="max-width: 340px"
-            class="ellipsis"
-          >
-            {{ $attrs.element.data.name }}
-            <q-tooltip>
-              {{ $attrs.element.data.name }}
-            </q-tooltip>
 
-          </div>
-          <q-btn
-            v-if="cMediaUrl"
-            flat
-            class="bg-padrao btn-rounded q-ma-sm"
-            color="primary"
-            no-caps
-            icon="mdi-image-edit-outline"
-            @click="$refs.PickerFileMessage.pickFiles()"
-          >
-            <q-tooltip>
-              Substituir Arquivo
-            </q-tooltip>
-          </q-btn>
+        <div class="media-info">
+          <div class="media-name">{{ media.name }}</div>
+          <div class="media-type">{{ media.type }}</div>
         </div>
 
-      </q-card-section>
-    </q-card>
+        <q-btn
+          flat
+          round
+          dense
+          icon="delete"
+          @click="handleRemoveMedia(index)"
+        />
+      </div>
+    </div>
+
+    <input
+      ref="fileInput"
+      type="file"
+      :accept="accept"
+      multiple
+      hidden
+      @change="handleFileChange"
+    />
   </div>
 </template>
 
-<script>
-import VueEasyLightbox from 'vue-easy-lightbox'
+<script setup>
+import { ref } from 'vue'
 
-export default {
-  name: 'MediaField',
-  components: { VueEasyLightbox },
-  data () {
-    return {
-      mediaUrl: '',
-      file: [],
-      abrirModalImagem: false,
-      loading: false,
-      name: '',
-      icons: {
-        xls: 'mdi-microsoft-excel',
-        xlsx: 'mdi-microsoft-excel',
-        doc: 'mdi-file-word',
-        docx: 'mdi-file-word',
-        zip: 'mdi-folder-zip-outline',
-        ppt: 'mdi-microsoft-powerpoint',
-        pptx: 'mdi-microsoft-powerpoint'
-      }
-    }
+const props = defineProps({
+  modelValue: {
+    type: Array,
+    default: () => []
   },
-  computed: {
-    cMediaUrl () {
-      if (this.$attrs.element.data?.mediaUrl) {
-        // eslint-disable-next-line vue/no-side-effects-in-computed-properties
-        this.mediaUrl = this.$attrs.element.data.mediaUrl
-        return this.mediaUrl
-      }
-      if (!this.$attrs.element.data?.mediaUrl && this.file.type) {
-        this.getMediaUrl()
-        return this.mediaUrl
-      }
-      return ''
-    }
+  title: {
+    type: String,
+    default: 'Mídia'
   },
-  methods: {
-    async getMediaUrl () {
-      let url = ''
-      if (this.file?.type) {
-        const blob = new Blob([this.file], { type: this.file.type })
-        url = window.URL.createObjectURL(blob)
-        this.$attrs.element.data.mediaUrl = url
-        const base64 = await this.getBase64(this.file)
-        this.$attrs.element.data.ext = this.getFileExtension(this.file.name)
-        this.$attrs.element.data.media = base64
-        this.$attrs.element.data.type = this.file.type
-        this.$attrs.element.data.name = this.file.name
-      } else {
-        this.mediaUrl = this.$attrs.element.data.mediaUrl
-      }
-    },
-    getNewMediaUrl () {
-      if (this.$attrs.element.data?.mediaUrl) {
-        // eslint-disable-next-line vue/no-side-effects-in-computed-properties
-        this.mediaUrl = this.$attrs.element.data.mediaUrl
-        return this.mediaUrl
-      }
-      if (!this.$attrs.element.data?.mediaUrl && this.file.type) {
-        return this.getMediaUrl()
-      } else {
-        // eslint-disable-next-line vue/no-side-effects-in-computed-properties
-        // this.mediaUrl = ''
-        return this.mediaUrl
-      }
-    },
-    getFileExtension (name) {
-      if (!name) return ''
-      const split = name.split('.')
-      const ext = split[split.length - 1]
-      return ext
-    },
-    getFileIcon (name) {
-      return this.icons[this.getFileExtension(name)]
-    },
-    getBase64 (file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader()
-        reader.readAsDataURL(file)
-        reader.onload = () => resolve(reader.result)
-        reader.onerror = error => reject(error)
-      })
-    },
-    onRejectedFiles (rejectedEntries) {
-      this.$q.notify({
-        html: true,
-        message: `Ops... Ocorreu um erro! <br>
-        <ul>
-          <li>Arquivo deve ter no máximo 5MB.</li>
-          <li>Priorize o envio de imagem ou vídeo.</li>
-        </ul>`,
-        type: 'negative',
-        progress: true,
-        position: 'top',
-        actions: [{
-          icon: 'close',
-          round: true,
-          color: 'white'
-        }]
-      })
-    }
+  accept: {
+    type: String,
+    default: 'image/*,video/*,audio/*'
   }
+})
+
+const emit = defineEmits(['update:modelValue'])
+
+const fileInput = ref(null)
+
+const handleAddMedia = () => {
+  fileInput.value?.click()
+}
+
+const handleFileChange = (event) => {
+  const files = Array.from(event.target.files || [])
+  
+  const newMedia = files.map(file => ({
+    name: file.name,
+    type: file.type,
+    size: file.size,
+    url: URL.createObjectURL(file),
+    file
+  }))
+
+  emit('update:modelValue', [...props.modelValue, ...newMedia])
+  event.target.value = ''
+}
+
+const handleRemoveMedia = (index) => {
+  const newValue = [...props.modelValue]
+  newValue.splice(index, 1)
+  emit('update:modelValue', newValue)
 }
 </script>
 
 <style lang="scss" scoped>
-#imagemfield > .q-img__content > div {
-  padding: 0 !important;
-  background: none; // rgba(0, 0, 0, 0.47);
+.media-field {
+  .field-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+
+    .field-title {
+      font-weight: 500;
+    }
+  }
+
+  .media-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .media-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+
+    .media-preview {
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f5f5f5;
+      border-radius: 4px;
+      overflow: hidden;
+
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+    }
+
+    .media-info {
+      flex: 1;
+      min-width: 0;
+
+      .media-name {
+        font-size: 14px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .media-type {
+        font-size: 12px;
+        color: #666;
+      }
+    }
+  }
 }
 </style>

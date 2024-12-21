@@ -1,152 +1,121 @@
 <template>
-  <div>
-    <q-card
-      flat
-      class="q-pa-sm q-pb-md"
-    >
-      <q-card-section class="q-pa-none">
-        <div class="flex flex-inline full-width items-center">
-          <div
-            class="flex flex-inline text-left"
-            style="width: 40px"
-          >
-            <q-btn
-              round
-              flat
-              dense
-            >
-              <q-icon
-                size="2em"
-                name="mdi-emoticon-happy-outline"
-              />
-              <q-tooltip>
-                Emoji
-              </q-tooltip>
-              <q-menu
-                anchor="top right"
-                self="bottom middle"
-                :offset="[5, 40]"
-              >
-                <VEmojiPicker
-                  style="width: 40vw"
-                  :showSearch="false"
-                  :emojisByRow="20"
-                  labelSearch="Localizar..."
-                  lang="pt-BR"
-                  @select="onInsertSelectEmoji"
-                />
-              </q-menu>
-            </q-btn>
-            <q-btn
-              round
-              flat
-              dense
-            >
-              <q-icon
-                size="2em"
-                name="mdi-variable"
-              />
-              <q-tooltip>
-                Variáveis
-              </q-tooltip>
-              <q-menu touch-position>
-                <q-list
-                  dense
-                  style="min-width: 100px"
-                >
-                  <q-item
-                    v-for="variavel in variaveis"
-                    :key="variavel.label"
-                    clickable
-                    @click="onInsertSelectVariable(variavel.value)"
-                    v-close-popup
-                  >
-                    <q-item-section>{{ variavel.label }}</q-item-section>
-                  </q-item>
-                </q-list>
-              </q-menu>
-            </q-btn>
-          </div>
-          <textarea
-            ref="inputEnvioMensagem"
-            style="min-height: 10vh; max-height: 30vh; flex: auto"
-            class="q-pa-sm bg-white rounded-all"
-            placeholder="Digite a mensagem"
-            autogrow
+  <div class="message-field">
+    <div class="field-header">
+      <div class="field-title">{{ title }}</div>
+      <q-btn
+        flat
+        round
+        dense
+        icon="add"
+        @click="addMessage"
+      />
+    </div>
+
+    <div class="message-list">
+      <div
+        v-for="(message, index) in modelValue"
+        :key="index"
+        class="message-item"
+      >
+        <q-input
+          v-model="message.text"
+          type="textarea"
+          outlined
+          dense
+          autogrow
+          :placeholder="placeholder"
+          @update:model-value="handleMessageChange(index, $event)"
+        />
+
+        <div class="message-actions">
+          <q-btn
+            flat
+            round
             dense
-            outlined
-            @input="(v) => $attrs.element.data.message = v.target.value"
-            :value="$attrs.element.data.message"
-          >
-          </textarea>
+            icon="delete"
+            @click="removeMessage(index)"
+          />
         </div>
-      </q-card-section>
-    </q-card>
+      </div>
+    </div>
   </div>
 </template>
 
-<script>
-import { VEmojiPicker } from 'v-emoji-picker'
+<script setup>
+import { ref, watch } from 'vue'
 
-export default {
-  name: 'MessageField',
-  components: { VEmojiPicker },
-  data () {
-    return {
-      variaveis: [
-        { label: 'Nome', value: '{{name}}' },
-        { label: 'Saudação', value: '{{greeting}}' },
-        { label: 'Protocolo', value: '{{protocol}}' }
-      ]
-    }
+const props = defineProps({
+  modelValue: {
+    type: Array,
+    default: () => []
   },
-  methods: {
-    onInsertSelectEmoji (emoji) {
-      const self = this
-      var tArea = this.$refs.inputEnvioMensagem
-      // get cursor's position:
-      var startPos = tArea.selectionStart,
-        endPos = tArea.selectionEnd,
-        cursorPos = startPos,
-        tmpStr = tArea.value
-      // filter:
-      if (!emoji.data) {
-        return
-      }
-      // insert:
-      self.txtContent = this.$attrs.element.data.message
-      self.txtContent = tmpStr.substring(0, startPos) + emoji.data + tmpStr.substring(endPos, tmpStr.length)
-      this.$attrs.element.data.message = self.txtContent
-      // move cursor:
-      setTimeout(() => {
-        tArea.selectionStart = tArea.selectionEnd = cursorPos + emoji.data.length
-      }, 10)
-    },
-    onInsertSelectVariable (variable) {
-      console.log('onInsertSelectVariable', variable)
-      const self = this
-      var tArea = this.$refs.inputEnvioMensagem
-      // get cursor's position:
-      var startPos = tArea.selectionStart,
-        endPos = tArea.selectionEnd,
-        cursorPos = startPos,
-        tmpStr = tArea.value
-      // filter:
-      if (!variable) {
-        return
-      }
-      // insert:
-      self.txtContent = this.$attrs.element.data.message
-      self.txtContent = tmpStr.substring(0, startPos) + variable + tmpStr.substring(endPos, tmpStr.length)
-      this.$attrs.element.data.message = self.txtContent
-      // move cursor:
-      setTimeout(() => {
-        tArea.selectionStart = tArea.selectionEnd = cursorPos + 1
-      }, 10)
-    }
+  title: {
+    type: String,
+    default: 'Mensagens'
+  },
+  placeholder: {
+    type: String,
+    default: 'Digite sua mensagem...'
   }
+})
+
+const emit = defineEmits(['update:modelValue'])
+
+const addMessage = () => {
+  const newValue = [...props.modelValue, { text: '' }]
+  emit('update:modelValue', newValue)
+}
+
+const removeMessage = (index) => {
+  const newValue = [...props.modelValue]
+  newValue.splice(index, 1)
+  emit('update:modelValue', newValue)
+}
+
+const handleMessageChange = (index, text) => {
+  const newValue = [...props.modelValue]
+  newValue[index].text = text
+  emit('update:modelValue', newValue)
 }
 </script>
 
 <style lang="scss" scoped>
+.message-field {
+  .field-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+
+    .field-title {
+      font-weight: 500;
+    }
+  }
+
+  .message-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .message-item {
+    position: relative;
+    
+    .message-actions {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      display: flex;
+      gap: 4px;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    &:hover {
+      .message-actions {
+        opacity: 1;
+      }
+    }
+  }
+}
 </style>

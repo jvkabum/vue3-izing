@@ -1,64 +1,51 @@
-<script>
-export default {
-  name: 'MultipleCards',
-  props: {
-    collection: Array,
-    sizes: {
-      type: Object,
-      default () {
-        return {
-          lg: 4,
-          md: 3,
-          sm: 2,
-          xs: 1
-        }
-      },
-      validator (value) {
-        for (const size of ['xl', 'lg', 'md', 'sm', 'xs']) {
-          if (value[size] && 12 % value[size] != 0) {
-            return false
-          }
-        }
-        return true
-      }
-    }
-  },
-  computed: {
-    contentClass () {
-      let contentClass = 'col'
-      for (const size of ['xl', 'lg', 'md', 'sm', 'xs']) {
-        if (this.sizes[size]) {
-          contentClass += ' col-' + size + '-' + (12 / this.sizes[size])
-        }
-      }
-      return contentClass
-    },
-    sets () {
-      const sets = []
-      const limit = Math.ceil(this.collection[0].length / this.itemsPerSet)
-      for (let index = 0; index < limit; index++) {
-        const start = index * this.itemsPerSet
-        const end = start + this.itemsPerSet
-        sets.push(this.collection[0].slice(start, end))
-      }
-      return sets
-    },
-    itemsPerSet () {
-      let cond = false
-      for (const size of ['xl', 'lg', 'md', 'sm', 'xs']) {
-        cond = cond || this.$q.screen[size]
-        if (cond && this.sizes[size]) {
-          return this.sizes[size]
-        }
-      }
-      return 1
-    }
-  },
-  render (h) {
-    return this.$scopedSlots.default({ sets: this.sets, contentClass: this.contentClass })[0]
-  }
+<template>
+  <div class="multiple-cards-container">
+    <q-card
+      v-for="(card, index) in cards"
+      :key="index"
+      class="q-mb-md"
+    >
+      <q-card-section>
+        <div class="text-h6">{{ card.title }}</div>
+        <div class="text-body1">{{ card.content }}</div>
+      </q-card-section>
+      <q-card-actions>
+        <q-btn
+          label="Ação"
+          @click="card.action"
+          color="primary"
+        />
+      </q-card-actions>
+    </q-card>
+  </div>
+</template>
+
+<script setup>
+import { ref } from 'vue'
+
+// Estado para armazenar os cartões
+const cards = ref([])
+
+// Método para adicionar cartões
+const addCard = (card) => {
+  cards.value.push(card)
 }
+
+// Método para remover cartões
+const removeCard = (index) => {
+  cards.value.splice(index, 1)
+}
+
+// Expor métodos
+defineExpose({
+  addCard,
+  removeCard
+})
 </script>
 
 <style lang="scss" scoped>
+.multiple-cards-container {
+  display: flex;
+  flex-direction: column;
+}
 </style>

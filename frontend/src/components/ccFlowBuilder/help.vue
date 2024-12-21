@@ -1,57 +1,54 @@
 <template>
-  <q-dialog
-    title="帮助"
-    v-model="dialogVisible"
-    width="70%"
-    customClass="flowHelp"
-  >
-    <el-tabs tab-position="left">
-      <el-tab-pane label="如何新增">
-        <el-divider content-position="left">如何新增</el-divider>
-        <div>按住鼠标拖拽左侧组件到中间画布中松开鼠标即可</div>
-      </el-tab-pane>
-      <el-tab-pane label="如何删除">
-        <el-divider content-position="left">页面删除</el-divider>
-        <div>
-          鼠标点中需要删除的节点，点击左上角的删除图标
-        </div>
-        <el-divider content-position="left">通过代码删除</el-divider>
+  <q-dialog v-model="dialogVisible" width="70%" title="Ajuda">
+    <q-tabs tab-position="left">
+      <q-tab-panel label="Como Adicionar">
+        <q-divider content-position="left">Como Adicionar</q-divider>
+        <div>Arraste os componentes da esquerda para a área central</div>
+      </q-tab-panel>
+
+      <q-tab-panel label="Como Excluir">
+        <q-divider content-position="left">Excluir na Interface</q-divider>
+        <div>Selecione o nó e clique no ícone de exclusão</div>
+
+        <q-divider content-position="left">Excluir via Código</q-divider>
         <pre>this.deleteNode(nodeId)</pre>
-      </el-tab-pane>
-      <el-tab-pane label="如何移动">
-        <el-divider content-position="left">如何移动</el-divider>
-        <div>鼠标移动到节点中，当鼠标变为可拖拽的图标时按下鼠标移动到新的位置松开鼠标</div>
-      </el-tab-pane>
-      <el-tab-pane label="如何连线">
-        <el-divider content-position="left">如何连线</el-divider>
-        <div>鼠标移动到节点中左侧的图标上，当鼠标变为+时按下鼠标移动到另一个节点中松开鼠标</div>
-      </el-tab-pane>
-      <el-tab-pane label="如何添加条件">
-        <el-divider content-position="left">如何添加条件</el-divider>
-        <div>点击画布中的连线，在页面右侧会出现一个表单，输入新的条件，点击【保存】</div>
-      </el-tab-pane>
-      <el-tab-pane label="如何进行后端交互存储">
-        <el-divider content-position="left">如何进行后端交互存储</el-divider>
-        <div>参考: https://gitee.com/xiaoka2017/easy-flow-sdk</div>
-      </el-tab-pane>
-    </el-tabs>
+      </q-tab-panel>
+
+      <q-tab-panel label="Como Mover">
+        <q-divider content-position="left">Como Mover</q-divider>
+        <div>Clique e arraste o nó para a nova posição</div>
+      </q-tab-panel>
+
+      <q-tab-panel label="Como Conectar">
+        <q-divider content-position="left">Como Conectar</q-divider>
+        <div>Arraste do ponto de conexão de um nó até outro nó</div>
+      </q-tab-panel>
+
+      <q-tab-panel label="Como Adicionar Condições">
+        <q-divider content-position="left">Como Adicionar Condições</q-divider>
+        <div>Clique na linha de conexão e configure no painel lateral</div>
+      </q-tab-panel>
+
+      <q-tab-panel label="Integração Backend">
+        <q-divider content-position="left">Integração Backend</q-divider>
+        <div>Consulte: https://gitee.com/xiaoka2017/easy-flow-sdk</div>
+      </q-tab-panel>
+    </q-tabs>
   </q-dialog>
 </template>
 
-<script>
-export default {
-  data () {
-    return {
-      dialogVisible: false
-    }
-  },
-  components: {},
-  methods: {
-    init () {
-      this.dialogVisible = true
-    }
-  }
+<script setup>
+import { ref } from 'vue'
+
+const dialogVisible = ref(false)
+
+const init = () => {
+  dialogVisible.value = true
 }
+
+defineExpose({
+  init
+})
 </script>
 
 <style>

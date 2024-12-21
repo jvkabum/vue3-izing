@@ -1,110 +1,154 @@
 <template>
-  <div>
-    <q-card
-      flat
-      class="q-pa-sm q-pb-md"
-    >
-      <q-card-section class="q-pa-none">
-        <div class="flex flex-inline full-width items-center">
-          <div
-            class="flex flex-inline text-left"
-            style="width: 40px"
-          >
-            <q-btn
-              round
-              flat
-              dense
-            >
-              <q-icon
-                size="2em"
-                name="mdi-emoticon-happy-outline"
-              />
-              <q-tooltip>
-                Emoji
-              </q-tooltip>
-              <q-menu
-                anchor="top right"
-                self="bottom middle"
-                :offset="[5, 40]"
-              >
-                <VEmojiPicker
-                  style="width: 40vw"
-                  :showSearch="false"
-                  :emojisByRow="20"
-                  labelSearch="Localizar..."
-                  lang="pt-BR"
-                  @select="onInsertSelectEmoji"
-                />
-              </q-menu>
-            </q-btn>
-          </div>
-          <textarea
-            ref="inputEnvioMensagem"
-            style="min-height: 10vh; max-height: 15vh; flex: auto"
-            class="q-pa-sm bg-white"
-            placeholder="Digite a mensagem"
-            autogrow
-            dense
+  <div class="options-field">
+    <div class="field-header">
+      <div class="field-title">{{ title }}</div>
+      <q-btn
+        flat
+        round
+        dense
+        icon="add"
+        @click="addOption"
+      />
+    </div>
+
+    <div class="options-list">
+      <div
+        v-for="(option, index) in modelValue"
+        :key="index"
+        class="option-item"
+      >
+        <div class="option-content">
+          <q-input
+            v-model="option.label"
             outlined
-            @input="(v) => $attrs.element.data.message = v.target.value"
-            :value="$attrs.element.data.message"
-          />
-        </div>
-        <div class="row col q-py-sm q-mb-md">
-          <q-select
-            v-model="$attrs.element.data.values"
-            use-input
-            outlined
-            use-chips
-            multiple
-            color="primary"
-            hide-dropdown-icon
-            input-debounce="0"
-            new-value-mode="add-unique"
-            class="full-width"
-            label="Opções"
-            filled
             dense
-            hint="Opções serão tratados como Lista/Botões ou texto simples dependendo do suporte do canal de destino."
+            placeholder="Texto da opção"
+            @update:model-value="handleOptionChange(index, 'label', $event)"
           />
 
+          <q-input
+            v-model="option.value"
+            outlined
+            dense
+            placeholder="Valor"
+            @update:model-value="handleOptionChange(index, 'value', $event)"
+          />
+
+          <q-select
+            v-model="option.action"
+            :options="actionOptions"
+            outlined
+            dense
+            emit-value
+            map-options
+            placeholder="Ação"
+            @update:model-value="handleOptionChange(index, 'action', $event)"
+          />
         </div>
-      </q-card-section>
-    </q-card>
+
+        <div class="option-actions">
+          <q-btn
+            flat
+            round
+            dense
+            icon="delete"
+            @click="removeOption(index)"
+          />
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
-<script>
-import { VEmojiPicker } from 'v-emoji-picker'
+<script setup>
+import { ref } from 'vue'
 
-export default {
-  name: 'MessageField',
-  components: { VEmojiPicker },
-  methods: {
-    onInsertSelectEmoji (emoji) {
-      const self = this
-      var tArea = this.$refs.inputEnvioMensagem
-      // get cursor's position:
-      var startPos = tArea.selectionStart,
-        endPos = tArea.selectionEnd,
-        cursorPos = startPos,
-        tmpStr = tArea.value
-      // filter:
-      if (!emoji.data) {
-        return
-      }
-      // insert:
-      self.txtContent = this.$attrs.element.data.message
-      self.txtContent = tmpStr.substring(0, startPos) + emoji.data + tmpStr.substring(endPos, tmpStr.length)
-      this.$attrs.element.data.message = self.txtContent
-      // move cursor:
-      setTimeout(() => {
-        tArea.selectionStart = tArea.selectionEnd = cursorPos + emoji.data.length
-      }, 10)
-    }
+const props = defineProps({
+  modelValue: {
+    type: Array,
+    default: () => []
+  },
+  title: {
+    type: String,
+    default: 'Opções'
   }
+})
+
+const emit = defineEmits(['update:modelValue'])
+
+const actionOptions = [
+  { label: 'Ir para nó', value: 'goto' },
+  { label: 'Finalizar', value: 'end' },
+  { label: 'Executar função', value: 'function' }
+]
+
+const addOption = () => {
+  const newValue = [
+    ...props.modelValue,
+    { label: '', value: '', action: '' }
+  ]
+  emit('update:modelValue', newValue)
+}
+
+const removeOption = (index) => {
+  const newValue = [...props.modelValue]
+  newValue.splice(index, 1)
+  emit('update:modelValue', newValue)
+}
+
+const handleOptionChange = (index, field, value) => {
+  const newValue = [...props.modelValue]
+  newValue[index][field] = value
+  emit('update:modelValue', newValue)
 }
 </script>
 
 <style lang="scss" scoped>
+.options-field {
+  .field-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+
+    .field-title {
+      font-weight: 500;
+    }
+  }
+
+  .options-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .option-item {
+    position: relative;
+    padding: 16px;
+    background: #f5f5f5;
+    border-radius: 4px;
+
+    .option-content {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .option-actions {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      display: flex;
+      gap: 4px;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    &:hover {
+      .option-actions {
+        opacity: 1;
+      }
+    }
+  }
+}
 </style>

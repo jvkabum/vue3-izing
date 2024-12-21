@@ -1,177 +1,69 @@
 <template>
-  <div>
-    <q-input
-      class="full-width"
-      hide-bottom-space
-      outlined
-      stack-label
-      type="text"
-      mask="##/##/#### ##:##"
-      fill-mask
-      bottom-slots
-      v-bind="$attrs"
-      :class="classAtrrs"
-      :value="cValue"
-      v-on="$listeners"
-      :error="cError"
-      :error-message="cErrorMessage"
-      :ruler="[val => dateIsValid(val) || 'Data inválida!' ]"
-    >
-      <template v-slot:prepend>
-        <q-icon
-          name="event"
-          class="cursor-pointer q-mr-sm"
-        >
-          <q-popup-proxy
-            ref="qDateProxy"
-            transition-show="scale"
-            transition-hide="scale"
-          >
-            <q-date
-              :value="cQDate"
-              today-btn
-              mask="DD/MM/YYYY HH:mm"
-              @input="emitDate"
-            />
-          </q-popup-proxy>
-        </q-icon>
-      </template>
-      <template v-slot:append>
-        <q-icon
-          name="access_time"
-          class="cursor-pointer"
-        >
-          <q-popup-proxy
-            ref="qTimeProxy"
-            transition-show="scale"
-            transition-hide="scale"
-          >
-            <q-time
-              :value="cQDate"
-              @input="emitDate"
-              mask="DD/MM/YYYY HH:mm"
-              format24h
-            >
-              <div class="row items-center justify-end">
-                <q-btn
-                  v-close-popup
-                  label="Close"
-                  color="primary"
-                  flat
-                />
-              </div>
-            </q-time>
-          </q-popup-proxy>
-        </q-icon>
-      </template>
-      <!-- Aceitar Demais Slot's -->
-      <template
-        v-for="(_, slot) of $scopedSlots"
-        v-slot:[slot]="scope"
-      >
-        <slot
-          :name="slot"
-          v-bind="scope"
-        />
-      </template>
-    </q-input>
-  </div>
+  <q-input
+    v-model="formattedDateTime"
+    label="Selecionar Data e Hora"
+    outlined
+    dense
+    @focus="showDateTimePicker = true"
+    readonly
+  />
+  <q-popup-proxy
+    v-model="showDateTimePicker"
+    transition-show="scale"
+    transition-hide="scale"
+    cover
+  >
+    <div>
+      <q-date
+        v-model="selectedDate"
+        @input="updateDateTime"
+        mask="DD/MM/YYYY"
+        locale="pt-BR"
+      />
+      <q-time
+        v-model="selectedTime"
+        @input="updateDateTime"
+        format24h
+      />
+    </div>
+  </q-popup-proxy>
 </template>
-<script>
-import { singleErrorExtractorMixin } from 'vuelidate-error-extractor'
-import { format, parse, isValid } from 'date-fns'
 
-export default {
-  name: 'ccInputDateTime',
-  extends: singleErrorExtractorMixin,
-  inheritAttrs: false,
-  data () {
-    return {
-      date: null,
-      dateSelect: null
-    }
-  },
-  props: {
-    value: [String, Date],
-    initValue: {
-      type: [String, Date],
-      default: null
-    },
-    error: {
-      type: [String, Boolean, Number],
-      default: 'NI' // Não Informada
-    },
-    errorMessage: {
-      type: [String, Boolean, Number],
-      default: '' // Não Informada
-    },
-    classAtrrs: {
-      type: String,
-      default: () => ''
-    },
-    icon: {
-      type: Object,
-      default: () => { }
-    }
-  },
-  watch: {
-    initValue (v) {
-      this.dateFormated(v)
-    }
-  },
-  computed: {
-    cValue () {
-      return this.value ? this.value : this.dateSelect ? format(parse(this.dateSelect, 'dd/MM/yyyy HH:mm', new Date()), 'yyyy-MM-dd HH:mm') : null
-    },
-    cQDate () {
-      if (isValid(this.cValue)) {
-        return format(this.cValue, 'dd/MM/yyyy HH:mm')
-      }
-      return this.cValue ? format(parse(this.cValue, 'yyyy-MM-dd HH:mm', new Date()), 'dd/MM/yyyy HH:mm') : format(new Date(), 'dd/MM/yyyy HH:mm')
-    },
-    cError () {
-      if (this.error == 'NI') {
-        return this.hasErrors
-      }
-      return this.error
-    },
-    cErrorMessage () {
-      if (this.errorMessage == '') {
-        return this.firstErrorMessage
-      }
-      return this.errorMessage
-    },
-    iconElment: {
-      cache: false,
-      get () {
-        const defaultConfig = { name: null, size: '24px', color: '#000' }
-        const data = { ...defaultConfig, ...this.icon }
-        if (!data.name) {
-          return defaultConfig
-        } else {
-          return data
-        }
-      }
-    }
-  },
-  methods: {
-    emitDate (d, r, dt) {
-      let date = d
-      if (!date) {
-        const time = format(new Date(), 'HH:mm')
-        date = `${dt.day}/${dt.month}/${dt.year} ${time}`
-      }
-      const parseDate = parse(date, 'dd/MM/yyyy HH:mm', new Date())
-      this.$emit('input', format(parseDate, 'yyyy-MM-dd HH:mm'))
-      this.$refs.qDateProxy.hide()
-      this.$refs.qTimeProxy.hide()
-    },
-    dateIsValid (d) {
-      return this.cValue ? isValid(d) : true
-    }
+<script setup>
+import { ref, watch } from 'vue'
+
+// Estado para controlar a exibição do seletor de data e hora
+const showDateTimePicker = ref(false)
+const selectedDate = ref(null)
+const selectedTime = ref(null)
+
+// Estado para armazenar a data e hora formatadas
+const formattedDateTime = ref('')
+
+// Atualiza a data e hora formatadas
+const updateDateTime = () => {
+  const date = selectedDate.value
+  const time = selectedTime.value
+
+  // Verifica se tanto a data quanto a hora estão selecionadas
+  if (date && time) {
+    const dateTime = new Date(date)
+    const [hours, minutes] = time.split(':')
+    dateTime.setHours(hours, minutes) // Define a hora e os minutos
+    formattedDateTime.value = dateTime.toLocaleString('pt-BR') // Formata a data e hora
+  } else {
+    formattedDateTime.value = '' // Reseta se não houver seleção
   }
+
+  showDateTimePicker.value = false // Fecha o seletor após a seleção
 }
+
+// Watch para atualizar a data e hora formatadas
+watch([selectedDate, selectedTime], updateDateTime)
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+.date-time-picker {
+  position: relative; // Define a posição relativa para o componente
+}
 </style>
