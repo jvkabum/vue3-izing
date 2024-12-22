@@ -13,13 +13,29 @@
               <div class="text-h6">Bem-vindo!</div>
             </q-card-section>
             <q-card-section>
-              <q-input class="q-mb-md" clearable v-model="form.email" placeholder="meu@email.com" :error="!$v.form.email.$pending && !$v.form.email.$model" error-message="Deve ser um e-mail válido." outlined @keypress.enter="fazerLogin">
+              <q-input 
+                class="q-mb-md" 
+                clearable 
+                v-model="form.email" 
+                placeholder="meu@email.com" 
+                :error="v$.form.email.$error"
+                :error-message="v$.form.email.$errors[0]?.$message"
+                outlined 
+                @keypress.enter="fazerLogin"
+              >
                 <template v-slot:prepend>
                   <q-icon name="mdi-email-outline" class="cursor-pointer" color='primary' />
                 </template>
               </q-input>
 
-              <q-input outlined v-model="form.password" :type="isPwd ? 'password' : 'text'" @keypress.enter="fazerLogin">
+              <q-input 
+                outlined 
+                v-model="form.password" 
+                :type="isPwd ? 'password' : 'text'" 
+                @keypress.enter="fazerLogin"
+                :error="v$.form.password.$error"
+                :error-message="v$.form.password.$errors[0]?.$message"
+              >
                 <template v-slot:prepend>
                   <q-icon name="mdi-shield-key-outline" class="cursor-pointer" color='primary' />
                 </template>
@@ -32,9 +48,9 @@
               <q-space />
               <q-btn class="q-mr-sm q-my-lg" style="width: 150px" color="primary" :loading="loading" @click="fazerLogin">
                 Login
-                <span slot="loading">
+                <template v-slot:loading>
                   <q-spinner-puff class="on-left" />Logando...
-                </span>
+                </template>
               </q-btn>
               <q-btn class="q-my-lg" style="width: 200px" color="primary" @click="clearCache">
                 Limpar Cache
@@ -51,8 +67,13 @@
 
 <script setup>
 import { ref } from 'vue'
-import { required, email } from 'vuelidate/lib/validators'
 import { useVuelidate } from '@vuelidate/core'
+import { required, email } from '@vuelidate/validators'
+import { useUserStore } from '../stores/user'
+import { useQuasar } from 'quasar'
+
+const $q = useQuasar()
+const userStore = useUserStore()
 
 const form = ref({
   email: '',
@@ -64,25 +85,44 @@ const loading = ref(false)
 
 const rules = {
   form: {
-    email: { required, email },
-    password: { required }
+    email: { 
+      required: required.$message('E-mail é obrigatório'),
+      email: email.$message('Deve ser um e-mail válido')
+    },
+    password: { 
+      required: required.$message('Senha é obrigatória')
+    }
   }
 }
 
-const $v = useVuelidate(rules, form)
+const v$ = useVuelidate(rules, { form })
 
-const fazerLogin = () => {
-  $v.$touch()
-  if ($v.$invalid) {
-    this.$q.notify('Informe usuário e senha corretamente.')
+const fazerLogin = async () => {
+  const isValid = await v$.value.$validate()
+  if (!isValid) {
+    $q.notify({
+      type: 'negative',
+      message: 'Informe usuário e senha corretamente.',
+      position: 'top'
+    })
     return
   }
+
   loading.value = true
-  // Simulação de login
-  setTimeout(() => {
+  try {
+    await userStore.userLogin({
+      email: form.value.email,
+      password: form.value.password
+    })
+  } catch (error) {
+    $q.notify({
+      type: 'negative',
+      message: 'Erro ao realizar login. Verifique suas credenciais.',
+      position: 'top'
+    })
+  } finally {
     loading.value = false
-    // Aqui você pode adicionar a lógica de login
-  }, 2000)
+  }
 }
 
 const clearCache = () => {
@@ -93,7 +133,11 @@ const clearCache = () => {
   }
   localStorage.clear()
   sessionStorage.clear()
-  this.$q.notify('Cache do navegador limpo.')
+  $q.notify({
+    type: 'positive',
+    message: 'Cache do navegador limpo.',
+    position: 'top'
+  })
 }
 </script>
 

@@ -1,6 +1,8 @@
-import { RealizarLogin } from '../../service/login'
+import { defineStore } from 'pinia'
+import { RealizarLogin } from '../service/login'
 import { Notify, Dark } from 'quasar'
-import { socketIO } from 'src/utils/socket'
+import { socketIO } from '../utils/socket'
+import { useRouter } from 'vue-router'
 
 const socket = socketIO()
 
@@ -14,32 +16,33 @@ const pesquisaTicketsFiltroPadrao = {
   withUnreadMessages: false,
   isNotAssignedUser: false,
   includeNotQueueDefined: true
-  // date: new Date(),
 }
 
-const user = {
-  state: {
+export const useUserStore = defineStore('user', {
+  state: () => ({
     token: null,
     isAdmin: false,
     isSuporte: false
-  },
-  mutations: {
-    SET_IS_SUPORTE (state, payload) {
+  }),
+
+  actions: {
+    setIsSuporte(payload) {
       const domains = ['@']
       let authorized = false
       domains.forEach(domain => {
-        if (payload?.email.toLocaleLowerCase().indexOf(domain.toLocaleLowerCase()) !== -1) {
+        if (payload?.email.toLowerCase().indexOf(domain.toLowerCase()) !== -1) {
           authorized = true
         }
       })
-      state.isSuporte = authorized
+      this.isSuporte = authorized
     },
-    SET_IS_ADMIN (state, payload) {
-      state.isAdmin = !!((state.isSuporte || payload.profile === 'admin'))
-    }
-  },
-  actions: {
-    async UserLogin ({ commit, dispatch }, user) {
+
+    setIsAdmin(payload) {
+      this.isAdmin = !!(this.isSuporte || payload.profile === 'admin')
+    },
+
+    async userLogin(user) {
+      const router = useRouter()
       user.email = user.email.trim()
       try {
         const { data } = await RealizarLogin(user)
@@ -49,7 +52,6 @@ const user = {
         localStorage.setItem('userId', data.userId)
         localStorage.setItem('usuario', JSON.stringify(data))
         localStorage.setItem('queues', JSON.stringify(data.queues))
-        localStorage.setItem('queues', JSON.stringify(data.queues))
         localStorage.setItem('filtrosAtendimento', JSON.stringify(pesquisaTicketsFiltroPadrao))
 
         if (data?.configs?.filtrosAtendimento) {
@@ -58,8 +60,9 @@ const user = {
         if (data?.configs?.isDark) {
           Dark.set(data.configs.isDark)
         }
-        commit('SET_IS_SUPORTE', data)
-        commit('SET_IS_ADMIN', data)
+
+        this.setIsSuporte(data)
+        this.setIsAdmin(data)
 
         socket.emit(`${data.tenantId}:setUserActive`)
 
@@ -71,23 +74,15 @@ const user = {
         })
 
         if (data.profile === 'admin') {
-          this.$router.push({
-            name: 'home-dashboard'
-          })
+          router.push({ name: 'home-dashboard' })
         } else if (data.profile === 'super') {
-          this.$router.push({
-            name: 'empresassuper'
-          })
+          router.push({ name: 'empresassuper' })
         } else {
-          this.$router.push({
-            name: 'atendimento'
-          })
+          router.push({ name: 'atendimento' })
         }
       } catch (error) {
-        console.error(error, error.data.error === 'ERROR_NO_PERMISSION_API_ADMIN')
+        console.error(error)
       }
     }
   }
-}
-
-export default user
+})
