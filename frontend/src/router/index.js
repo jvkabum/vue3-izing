@@ -1,41 +1,55 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
-import { Notify } from 'quasar'
+import { useRouterAuth } from '../composables/router/useRouterAuth'
 import routes from './routes'
 
+/**
+ * Configuração do Router
+ */
 const router = createRouter({
-  scrollBehavior: () => ({ left: 0, top: 0 }),
+  // Histórico
+  history: createWebHashHistory(process.env.VUE_ROUTER_BASE),
+  
+  // Comportamento de scroll
+  scrollBehavior: () => ({ 
+    left: 0, 
+    top: 0,
+    behavior: 'smooth'
+  }),
+
+  // Rotas
   routes,
-  history: createWebHashHistory(process.env.VUE_ROUTER_BASE)
+
+  // Configurações adicionais
+  strict: process.env.NODE_ENV !== 'production',
+  sensitive: true,
+  
+  // Fallback para hash mode
+  fallback: true
 })
 
-const whiteListName = [
-  'login'
-]
+// Composables
+const { navigationGuard, afterNavigation } = useRouterAuth()
 
-router.beforeEach((to, from, next) => {
-  const token = JSON.parse(localStorage.getItem('token'))
+// Guards
+router.beforeEach(navigationGuard)
+router.afterEach(afterNavigation)
 
-  if (!token) {
-    if (whiteListName.indexOf(to.name) === -1) {
-      if (to.fullPath !== '/login' && !to.query.tokenSetup) {
-        Notify.create({ 
-          message: 'Necessário realizar login', 
-          position: 'top' 
-        })
-        next({ name: 'login' })
-      } else {
-        next()
-      }
-    } else {
-      next()
-    }
-  } else {
-    next()
+// Tratamento de erros
+router.onError((error) => {
+  console.error('Erro de navegação:', error)
+  
+  // Redireciona para página de erro em caso de falha no carregamento
+  if (error.type === 2 /* Navigation failure */) {
+    router.push('/error')
   }
 })
 
-router.afterEach(() => {
-  window.scrollTo(0, 0)
-})
+// Configurações de desenvolvimento
+if (process.env.NODE_ENV === 'development') {
+  // Log de navegação
+  router.beforeEach((to, from) => {
+    console.log(`Navegando de ${from.fullPath} para ${to.fullPath}`)
+  })
+}
 
 export default router

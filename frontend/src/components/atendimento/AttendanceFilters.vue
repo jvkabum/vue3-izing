@@ -1,4 +1,4 @@
-<template>
+ <template>
   <div class="row q-pa-sm attendance-filters">
     <div class="q-ma-sm">
       <!-- Título do componente -->

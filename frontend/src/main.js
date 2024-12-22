@@ -4,21 +4,20 @@ import { Quasar, Notify, Dialog, LocalStorage } from 'quasar'
 import quasarLang from 'quasar/lang/pt-BR'
 import router from './router'
 
-// Import icon libraries
+// Estilos
 import '@quasar/extras/material-icons/material-icons.css'
 import '@quasar/extras/mdi-v5/mdi-v5.css'
-
-// Import Quasar css
 import 'quasar/src/css/index.sass'
 
-// Assumes your root component is App.vue
-// and placed in same folder as main.js
+// Componentes
 import App from './App.vue'
 
-// Composables globais
+// Composables
 import { useSocket } from './composables/useSocket'
 import { useNotification } from './composables/useNotification'
+import { useGlobalHelpers } from './composables/utils/useGlobalHelpers'
 
+// Cria app
 const app = createApp(App)
 
 // Configuração do Quasar
@@ -30,12 +29,38 @@ app.use(Quasar, {
   },
   lang: quasarLang,
   config: {
-    notify: {},
-    loading: {}
+    // Configurações do Notify
+    notify: {
+      position: 'top',
+      timeout: 2500,
+      textColor: 'white',
+      actions: [{ icon: 'close', color: 'white' }]
+    },
+    // Configurações do Loading
+    loading: {
+      delay: 400,
+      message: 'Carregando...',
+      spinnerSize: 80,
+      spinnerColor: 'primary'
+    },
+    // Configurações de animações
+    animations: {
+      duration: 300
+    },
+    // Configurações de tema
+    brand: {
+      primary: '#3E72AF',
+      secondary: '#26A69A',
+      accent: '#9C27B0',
+      positive: '#21BA45',
+      negative: '#C10015',
+      info: '#31CCEC',
+      warning: '#F2C037'
+    }
   }
 })
 
-// Pinia para gerenciamento de estado
+// Pinia
 const pinia = createPinia()
 app.use(pinia)
 
@@ -43,24 +68,50 @@ app.use(pinia)
 app.use(router)
 
 // Composables globais
-app.provide('socket', useSocket())
-app.provide('notify', useNotification())
+const { socket } = useSocket()
+const { notify } = useNotification()
+const { getInitials, requestNotificationPermission } = useGlobalHelpers()
+
+app.provide('socket', socket)
+app.provide('notify', notify)
 
 // Helpers globais
-app.config.globalProperties.$iniciaisString = (str) => {
-  if (!str) return ''
-  return str
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .substring(0, 2)
-    .toUpperCase()
-}
+app.config.globalProperties.$iniciaisString = getInitials
 
 // Configuração de notificações
-if ('Notification' in window) {
-  Notification.requestPermission()
+requestNotificationPermission()
+
+// Configurações globais
+app.config.errorHandler = (err, vm, info) => {
+  console.error('Erro global:', err)
+  console.error('Componente:', vm)
+  console.error('Info:', info)
+  
+  Notify.create({
+    type: 'negative',
+    message: 'Ocorreu um erro inesperado',
+    caption: 'Por favor, tente novamente',
+    position: 'top',
+    timeout: 5000
+  })
 }
 
-// Mount the app
+app.config.warnHandler = (msg, vm, trace) => {
+  console.warn('Aviso:', msg)
+  console.warn('Componente:', vm)
+  console.warn('Trace:', trace)
+}
+
+// Performance
+app.config.performance = true
+
+// Compilação
+app.config.compilerOptions = {
+  isCustomElement: (tag) => tag.startsWith('q-')
+}
+
+// Mount
 app.mount('#q-app')
+
+// Exporta app para uso em outros arquivos se necessário
+export { app }

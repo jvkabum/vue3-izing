@@ -17,7 +17,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, defineProps, defineEmits } from 'vue'
 
 const props = defineProps({
   value: {
@@ -54,4 +54,11 @@ const saveContact = () => {
 </script>
 
 <style scoped>
+.contact-card {
+  border: 1px solid #ccc;
+  padding: 1em;
+  margin: 1em 0;
+  border-radius: 8px;
+  background: #f9f9f9;
+}
 </style>

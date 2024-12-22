@@ -3,10 +3,11 @@ import { RealizarLogin } from '../service/login'
 import { Notify, Dark } from 'quasar'
 import { socketIO } from '../utils/socket'
 import { useRouter } from 'vue-router'
+import type { UserState, UserCredentials, UserData, UserConfig } from '../types/stores/user.types'
 
 const socket = socketIO()
 
-const pesquisaTicketsFiltroPadrao = {
+const pesquisaTicketsFiltroPadrao: UserConfig['filtrosAtendimento'] = {
   searchParam: '',
   pageNumber: 1,
   status: ['open', 'pending', 'closed'],
@@ -19,14 +20,14 @@ const pesquisaTicketsFiltroPadrao = {
 }
 
 export const useUserStore = defineStore('user', {
-  state: () => ({
+  state: (): UserState => ({
     token: null,
     isAdmin: false,
     isSuporte: false
   }),
 
   actions: {
-    setIsSuporte(payload) {
+    setIsSuporte(payload: UserData): void {
       const domains = ['@']
       let authorized = false
       domains.forEach(domain => {
@@ -37,11 +38,11 @@ export const useUserStore = defineStore('user', {
       this.isSuporte = authorized
     },
 
-    setIsAdmin(payload) {
+    setIsAdmin(payload: UserData): void {
       this.isAdmin = !!(this.isSuporte || payload.profile === 'admin')
     },
 
-    async userLogin(user) {
+    async userLogin(user: UserCredentials): Promise<void> {
       const router = useRouter()
       user.email = user.email.trim()
       try {
