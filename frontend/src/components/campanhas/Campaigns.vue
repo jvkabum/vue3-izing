@@ -57,16 +57,16 @@
 
 <script setup>
 import { onMounted } from 'vue'
-import { useCampaigns } from '../composables/useCampaigns'
-import { useNotification } from '../composables/useNotification'
-import { useCampaignDialog } from '../composables/useCampaignDialog'
-import { useSearch } from '../composables/useSearch'
-import CampaignList from './campaigns/CampaignList.vue'
-import CampaignDialog from './campaigns/CampaignDialog.vue'
+import { useCampaigns } from '../../composables/campanhas/useCampaigns'
+import { useNotificationSystem } from '../../composables/sistema/useNotificationSystem'
+import { useCampaignDialog } from '../../composables/campanhas/useCampaignDialog'
+import { useSearch } from '../../composables/comum/useSearch'
+import CampaignList from './CampaignList.vue'
+import CampaignDialog from './CampaignDialog.vue'
 
 // Composables
 const { campaigns, loading, error, deleteCampaign, loadCampaigns, saveCampaign } = useCampaigns()
-const { notify } = useNotification()
+const { notifySuccess, notifyError } = useNotificationSystem()
 const { isDialogOpen, editingCampaign, openAddDialog, openEditDialog, closeDialog } = useCampaignDialog()
 const { searchTerm, filteredItems } = useSearch(campaigns)
 
@@ -74,35 +74,19 @@ const { searchTerm, filteredItems } = useSearch(campaigns)
 const handleDeleteCampaign = async (campaign) => {
   try {
     await deleteCampaign(campaign.id)
-    notify({
-      type: 'positive',
-      message: 'Campanha removida com sucesso',
-      position: 'top'
-    })
+    notifySuccess('Campanha removida com sucesso')
   } catch (err) {
-    notify({
-      type: 'negative',
-      message: 'Erro ao remover campanha',
-      position: 'top'
-    })
+    notifyError('Erro ao remover campanha')
   }
 }
 
 const handleSaveCampaign = async (campaignData) => {
   try {
     await saveCampaign(campaignData)
-    notify({
-      type: 'positive',
-      message: `Campanha ${campaignData.id ? 'atualizada' : 'criada'} com sucesso`,
-      position: 'top'
-    })
+    notifySuccess(`Campanha ${campaignData.id ? 'atualizada' : 'criada'} com sucesso`)
     closeDialog()
   } catch (err) {
-    notify({
-      type: 'negative',
-      message: 'Erro ao salvar campanha',
-      position: 'top'
-    })
+    notifyError('Erro ao salvar campanha')
   }
 }
 

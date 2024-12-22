@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import { api } from '@/services/api'
+import request from 'src/service/request'
 
 export function useAttendance() {
   const attendance = ref(null)
@@ -12,11 +12,14 @@ export function useAttendance() {
   const startAttendance = async () => {
     loading.value = true
     try {
-      const { data } = await api.post('/attendance/start')
+      const { data } = await request({
+        url: '/attendance/start',
+        method: 'post'
+      })
       attendance.value = data
       return data
     } catch (err) {
-      error.value = err.message
+      error.value = err?.data?.error || err.message
       throw err
     } finally {
       loading.value = false
@@ -26,11 +29,15 @@ export function useAttendance() {
   const pauseAttendance = async (reason) => {
     loading.value = true
     try {
-      const { data } = await api.post('/attendance/pause', { reason })
+      const { data } = await request({
+        url: '/attendance/pause',
+        method: 'post',
+        data: { reason }
+      })
       attendance.value = data
       return data
     } catch (err) {
-      error.value = err.message
+      error.value = err?.data?.error || err.message
       throw err
     } finally {
       loading.value = false
@@ -40,11 +47,14 @@ export function useAttendance() {
   const resumeAttendance = async () => {
     loading.value = true
     try {
-      const { data } = await api.post('/attendance/resume')
+      const { data } = await request({
+        url: '/attendance/resume',
+        method: 'post'
+      })
       attendance.value = data
       return data
     } catch (err) {
-      error.value = err.message
+      error.value = err?.data?.error || err.message
       throw err
     } finally {
       loading.value = false
@@ -54,10 +64,30 @@ export function useAttendance() {
   const endAttendance = async () => {
     loading.value = true
     try {
-      await api.post('/attendance/end')
+      await request({
+        url: '/attendance/end',
+        method: 'post'
+      })
       attendance.value = null
     } catch (err) {
-      error.value = err.message
+      error.value = err?.data?.error || err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const getAttendanceStatus = async () => {
+    loading.value = true
+    try {
+      const { data } = await request({
+        url: '/attendance/status',
+        method: 'get'
+      })
+      attendance.value = data
+      return data
+    } catch (err) {
+      error.value = err?.data?.error || err.message
       throw err
     } finally {
       loading.value = false
@@ -65,14 +95,20 @@ export function useAttendance() {
   }
 
   return {
+    // Estado
     attendance,
     loading,
     error,
+    
+    // Computed
     isActive,
     isPaused,
+    
+    // Métodos
     startAttendance,
     pauseAttendance,
     resumeAttendance,
-    endAttendance
+    endAttendance,
+    getAttendanceStatus
   }
-} 
+}

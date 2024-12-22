@@ -47,14 +47,14 @@
       color="grey-7"
       class="clear-all-btn"
       label="Limpar Todas"
-      @click="clearNotifications"
+      @click="markAllAsRead"
     />
   </div>
 </template>
 
 <script setup>
 import { computed } from 'vue'
-import { useNotifications } from '../composables/useNotifications'
+import { useNotificationSystem } from '../../composables/sistema/useNotificationSystem'
 
 const props = defineProps({
   position: {
@@ -86,24 +86,26 @@ const emit = defineEmits(['action', 'click'])
 
 const {
   notifications,
-  removeNotification,
-  clearNotifications,
+  deleteNotification: removeNotification,
+  markAllAsRead,
   notify,
-  success,
-  error,
-  warning,
-  info
-} = useNotifications()
+  notifySuccess: success,
+  notifyError: error,
+  notifyWarning: warning,
+  notifyInfo: info
+} = useNotificationSystem()
 
 // Computed
 const sortedNotifications = computed(() => {
-  return [...notifications.value].sort((a, b) => b.timestamp - a.timestamp)
+  return [...notifications.value]
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, props.maxNotifications)
 })
 
 // Methods
 const getNotificationProps = (notification) => {
   const {
-    id, timestamp, actions, html, caption, ...props
+    id, createdAt, actions, html, caption, ...props
   } = notification
   
   return {
@@ -132,7 +134,7 @@ defineExpose({
   error,
   warning,
   info,
-  clearNotifications
+  markAllAsRead
 })
 </script>
 

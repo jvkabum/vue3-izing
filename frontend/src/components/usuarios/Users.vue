@@ -46,11 +46,11 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { useUsers } from '../composables/useUsers'
-import { useNotification } from '../composables/useNotification'
+import { useUsers } from '../../composables/usuarios/useUsers'
+import { useNotificationSystem } from '../../composables/sistema/useNotificationSystem'
 
 const { users, loading, error, deleteUser, loadUsers } = useUsers()
-const { notify } = useNotification()
+const { notifySuccess, notifyError } = useNotificationSystem()
 
 // Estado
 const searchTerm = ref('')
@@ -81,17 +81,9 @@ const openUserDetails = (userId) => {
 const handleDeleteUser = async (userId) => {
   try {
     await deleteUser(userId)
-    notify({
-      type: 'positive',
-      message: 'Usuário removido com sucesso',
-      position: 'top'
-    })
+    notifySuccess('Usuário removido com sucesso')
   } catch (err) {
-    notify({
-      type: 'negative',
-      message: 'Erro ao remover usuário',
-      position: 'top'
-    })
+    notifyError('Erro ao remover usuário')
   }
 }
 
