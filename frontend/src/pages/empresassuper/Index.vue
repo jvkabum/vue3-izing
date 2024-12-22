@@ -1,5 +1,5 @@
 <template>
-  <div v-if="userProfile === 'super'">
+  <div v-if="userProfile === 'super'" class="empresas-page">
     <q-table
       flat
       bordered
@@ -11,180 +11,207 @@
       :columns="columns"
       :loading="loading"
       row-key="id"
-      :pagination.sync="pagination"
+      :pagination="pagination"
       :rows-per-page-options="[0]"
     >
-
-      <template v-slot:top-right>
+      <!-- Botão Adicionar -->
+      <template #top-right>
         <q-btn
           rounded
           color="primary"
+          icon="add"
           label="Adicionar"
-          @click="tenantEdicao = {}; modalTenant = true"
-        />
+          @click="handleAddTenant"
+        >
+          <q-tooltip>Adicionar nova empresa</q-tooltip>
+        </q-btn>
       </template>
-      <template v-slot:body-cell-color="props">
-        <q-td class="text-center">
-          <div
-            class="q-pa-sm rounded-borders"
-            :style="`background: ${props.row.color}`"
-          >
-            {{ props.row.color }}
+
+      <!-- Coluna Status -->
+      <template #body-cell-status="props">
+        <q-td :class="getStatusClass(props.row)">
+          <div class="status-cell">
+            <q-icon
+              :name="props.row.status === 'active' ? 'check_circle' : 'cancel'"
+              :color="props.row.status === 'active' ? 'positive' : 'negative'"
+              size="1.5em"
+            />
+            <span class="q-ml-sm">{{ formatStatus(props.row.status) }}</span>
           </div>
         </q-td>
       </template>
-      <template v-slot:body-cell-isActive="props">
+
+      <!-- Coluna Ações -->
+      <template #body-cell-acoes="props">
         <q-td class="text-center">
-          <q-icon
-            size="24px"
-            :name="props.value ? 'mdi-check-circle-outline' : 'mdi-close-circle-outline'"
-            :color="props.value ? 'positive' : 'negative'"
-          />
+          <div class="row justify-center q-gutter-sm">
+            <!-- Editar -->
+            <q-btn
+              flat
+              round
+              icon="edit"
+              color="warning"
+              @click="editarTenant(props.row)"
+            >
+              <q-tooltip>Editar empresa</q-tooltip>
+            </q-btn>
+
+            <!-- Excluir -->
+            <q-btn
+              flat
+              round
+              icon="delete"
+              color="negative"
+              @click="deletarTenant(props.row)"
+            >
+              <q-tooltip>Excluir empresa</q-tooltip>
+            </q-btn>
+          </div>
         </q-td>
       </template>
-      <template v-slot:body-cell-acoes="props">
-        <q-td class="text-center">
-          <q-btn
-            flat
-            round
-            icon="edit"
-            style="margin-right: 10px;"
-            @click="editarTenant(props.row)"
-          />
-          <q-btn
-            flat
-            round
-            icon="delete"
-            @click="deletarTenant(props.row)"
-          />
-          </q-td>
+
+      <!-- Loading -->
+      <template #loading>
+        <q-inner-loading showing color="primary">
+          <q-spinner-dots size="50px" color="primary" />
+        </q-inner-loading>
       </template>
-      <template v-slot:body-cell-status="props">
-      <q-td :class="getColClass(props.row)">
-        {{ formatStatus(props.row.status) }}
-      </q-td>
-    </template>
+
+      <!-- Sem Dados -->
+      <template #no-data>
+        <div class="full-width row flex-center q-pa-md text-grey-8">
+          <q-icon name="business" size="2em" class="q-mr-sm" />
+          Nenhuma empresa encontrada
+        </div>
+      </template>
     </q-table>
+
+    <!-- Modal de Empresa -->
     <ModalTenant
-      :modalTenant.sync="modalTenant"
-      :tenantEdicao.sync="tenantEdicao"
+      v-model="modalTenant"
+      v-model:tenant-edicao="tenantEdicao"
       @modal-tenant:criada="tenantCriada"
       @modal-tenant:editada="tenantEditada"
     />
   </div>
 </template>
 
-<script>
-import { DeletarTenant, ListarTenants } from 'src/service/empresas'
-import ModalTenant from './ModalTenant'
-export default {
-  name: 'Tenants',
-  components: {
-    ModalTenant
-  },
-  data () {
-    return {
-      userProfile: 'user',
-      tenantEdicao: {},
-      modalTenant: false,
-      tenants: [],
-      pagination: {
-        rowsPerPage: 40,
-        rowsNumber: 0,
-        lastIndex: 0
-      },
-      loading: false,
-      columns: [
-        { name: 'id', label: '#', field: 'id', align: 'left' },
-        { name: 'status', label: 'Status', field: 'status', align: 'left', format: val => this.formatStatus(val) },
-        { name: 'name', label: 'Nome', field: 'name', align: 'center' },
-        { name: 'maxUsers', label: 'Limite de Usuário', field: 'maxUsers', align: 'center' },
-        { name: 'maxConnections', label: 'Limite de Conexão', field: 'maxConnections', align: 'center' },
-        { name: 'acoes', label: 'Ações', field: 'acoes', align: 'center' }
-      ]
-    }
-  },
-  methods: {
-    getColClass (row) {
-      return row.status === 'active' ? 'bg-active' : 'bg-inactive'
-    },
-    formatStatus (value) {
-      return value === 'active' ? 'Ativo' : 'Inativo'
-    },
-    async listarTenants () {
-      const { data } = await ListarTenants()
-      this.tenants = data.filter(tenant => tenant.id !== 1)
-    },
-    tenantCriada (tenant) {
-      const newTenants = [...this.tenants]
-      newTenants.push(tenant)
-      this.tenants = [...newTenants]
-    },
-    tenantEditada (tenant) {
-      const newTenants = [...this.tenants]
-      const idx = newTenants.findIndex(f => f.id === tenant.id)
-      if (idx > -1) {
-        newTenants[idx] = tenant
-      }
-      this.tenants = [...newTenants]
-    },
-    editarTenant (tenant) {
-      this.tenantEdicao = { ...tenant }
-      this.modalTenant = true
-    },
-    deletarTenant (tenant) {
-      this.$q.dialog({
-        title: 'Atenção!!',
-        message: `Deseja realmente deletar a Empresa "${tenant.id}"?`,
-        cancel: {
-          label: 'Não',
-          color: 'primary',
-          push: true
-        },
-        ok: {
-          label: 'Sim',
-          color: 'negative',
-          push: true
-        },
-        persistent: true
-      }).onOk(() => {
-        this.loading = true
-        DeletarTenant(tenant)
-          .then(res => {
-            let newTenants = [...this.tenants]
-            newTenants = newTenants.filter(f => f.id !== tenant.id)
+<script setup>
+import { ref, onMounted } from 'vue'
+import { useEmpresas } from '../../composables/empresas/useEmpresas'
+import ModalTenant from './ModalTenant.vue'
 
-            this.tenants = [...newTenants]
-            this.$q.notify({
-              type: 'positive',
-              progress: true,
-              position: 'top',
-              message: `Empresa ${tenant.id} deletada!`,
-              actions: [{
-                icon: 'close',
-                round: true,
-                color: 'white'
-              }]
-            })
-          })
-        this.loading = false
-      })
-    }
+// Estado
+const userProfile = ref(localStorage.getItem('profile'))
 
-  },
-  mounted () {
-    this.userProfile = localStorage.getItem('profile')
-    this.listarTenants()
-  }
+// Composables
+const {
+  tenants,
+  tenantEdicao,
+  modalTenant,
+  loading,
+  pagination,
+  columns,
+  listarTenants,
+  tenantCriada,
+  tenantEditada,
+  editarTenant,
+  deletarTenant,
+  formatStatus,
+  getStatusClass
+} = useEmpresas()
+
+/**
+ * Manipula adição de nova empresa
+ */
+const handleAddTenant = () => {
+  tenantEdicao.value = {}
+  modalTenant.value = true
 }
+
+// Lifecycle
+onMounted(() => {
+  listarTenants()
+})
 </script>
 
 <style lang="scss" scoped>
-.bg-active {
-  background-color: #21BA45;
+.empresas-page {
+  // Status
+  .status-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 8px;
+    border-radius: 16px;
+    transition: all 0.3s ease;
+  }
+
+  // Classes de status
+  .bg-active {
+    background-color: rgba(33, 186, 69, 0.1);
+    color: var(--q-positive);
+  }
+
+  .bg-inactive {
+    background-color: rgba(193, 0, 21, 0.1);
+    color: var(--q-negative);
+  }
+
+  // Tabela
+  .my-sticky-dynamic {
+    // Cabeçalho fixo
+    .q-table__top,
+    .q-table__bottom,
+    thead tr:first-child th {
+      background-color: #fff;
+      transition: background-color 0.3s ease;
+    }
+
+    thead tr th {
+      position: sticky;
+      z-index: 1;
+    }
+
+    thead tr:last-child th {
+      top: 48px;
+    }
+
+    thead tr:first-child th {
+      top: 0;
+    }
+  }
+
+  // Botões
+  .q-btn {
+    opacity: 0.8;
+    transition: all 0.3s ease;
+
+    &:hover {
+      opacity: 1;
+      transform: scale(1.05);
+    }
+  }
 }
 
-.bg-inactive {
-  background-color: #C10015;
+// Tema escuro
+:deep(.body--dark) {
+  .empresas-page {
+    .my-sticky-dynamic {
+      .q-table__top,
+      .q-table__bottom,
+      thead tr:first-child th {
+        background-color: $dark;
+      }
+    }
+
+    .bg-active {
+      background-color: rgba(33, 186, 69, 0.2);
+    }
+
+    .bg-inactive {
+      background-color: rgba(193, 0, 21, 0.2);
+    }
+  }
 }
 </style>

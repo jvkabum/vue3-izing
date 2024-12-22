@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="message-input">
     <!-- Área de Input para Tickets Ativos -->
     <template v-if="ticketStatus !== 'pending'">
       <!-- Menu de Mensagens Rápidas -->
@@ -13,49 +13,81 @@
       />
 
       <!-- Área Principal de Input -->
-      <div class="row q-pb-md q-pt-sm bg-white justify-start items-center text-grey-9 relative-position"
-           style="min-height: 80px">
-        
+      <div 
+        class="input-container row q-pb-md q-pt-sm bg-white justify-start items-center text-grey-9"
+      >
         <!-- Seletor de Data para Agendamento -->
         <schedule-date-picker
           v-if="isScheduleMode"
           v-model="scheduleDate"
+          class="q-mb-sm"
         />
 
         <!-- Controles de Mensagem -->
         <template v-if="!isRecordingAudio">
           <!-- Botões de Ação (Desktop) -->
           <message-action-buttons
-            v-if="$q.screen.width > 500"
+            v-if="$q.screen.gt.xs"
             :disabled="isActionsDisabled"
             :sign="sign"
             @toggle-sign="handleSign"
-            @attach-file="openFileAttachment"
+            @attach-file="$refs.fileUpload?.pickFiles()"
             @emoji-select="insertEmoji"
             @video-link="sendVideoLink"
           />
 
           <!-- Campo de Mensagem -->
-          <message-input-field
-            v-show="!showFileUpload"
-            ref="inputMessage"
-            v-model="messageText"
-            :loading="loading"
-            :disabled="isActionsDisabled"
-            :show-quick-messages="showQuickMessages"
-            @send="sendMessage"
-            @paste="handlePaste"
-            @toggle-quick-messages="showQuickMessages = !showQuickMessages"
-          />
+          <div 
+            class="message-field col"
+            :class="{ 'q-px-md': $q.screen.gt.xs }"
+          >
+            <!-- Mensagem Sendo Respondida -->
+            <div 
+              v-if="replyingMessage"
+              class="replying-message q-px-md q-py-sm bg-blue-1"
+            >
+              <div class="row items-center justify-between">
+                <div class="text-subtitle2 text-primary">
+                  Respondendo mensagem
+                </div>
+                <q-btn
+                  flat
+                  round
+                  dense
+                  icon="close"
+                  @click="$emit('update:replyingMessage', null)"
+                >
+                  <q-tooltip>Cancelar resposta</q-tooltip>
+                </q-btn>
+              </div>
+              <div class="text-caption q-mt-xs">
+                {{ replyingMessage.body }}
+              </div>
+            </div>
 
-          <!-- Upload de Arquivos -->
-          <file-upload-field
-            v-show="showFileUpload"
-            v-model="files"
-            :loading="loading"
-            :disabled="isActionsDisabled"
-            @rejected="handleRejectedFiles"
-          />
+            <!-- Campo de Input -->
+            <message-input-field
+              v-show="!showFileUpload"
+              ref="inputRef"
+              v-model="messageText"
+              :loading="loading"
+              :disabled="isActionsDisabled"
+              :show-quick-messages="showQuickMessages"
+              @send="sendMessage"
+              @paste="handlePaste"
+              @toggle-quick-messages="showQuickMessages = !showQuickMessages"
+            />
+
+            <!-- Upload de Arquivos -->
+            <file-upload-field
+              v-show="showFileUpload"
+              ref="fileUpload"
+              v-model="files"
+              :loading="loading"
+              :disabled="isActionsDisabled"
+              @rejected="handleRejectedFiles"
+            />
+          </div>
 
           <!-- Botões de Envio -->
           <send-buttons
@@ -75,42 +107,50 @@
           @cancel="cancelAudioRecording"
           @stop="stopAudioRecording"
         />
-
-        <!-- Modal de Preview de Imagem -->
-        <media-preview-modal
-          v-model="showMediaPreview"
-          :media="mediaPreview"
-          @hide="hideMediaPreview"
-          @send="sendMessage"
-        />
       </div>
+
+      <!-- Modal de Preview de Mídia -->
+      <media-preview-modal
+        v-model="showMediaPreview"
+        :media="mediaPreview"
+        :loading="loading"
+        @hide="hideMediaPreview"
+        @send="sendMessage"
+      />
     </template>
 
     <!-- Botão de Iniciar Atendimento -->
     <template v-else>
-      <div class="row q-pb-md q-pt-sm bg-white justify-center items-center text-grey-9 relative-position"
-           style="min-height: 80px">
+      <div class="start-ticket row q-pb-md q-pt-sm bg-white justify-center items-center">
         <q-btn
           push
           rounded
-          style="width: 250px"
-          class="text-bold"
           color="positive"
-          icon="mdi-send-circle"
-          label="Iniciar o atendimento"
+          icon="mdi-headset"
+          label="Iniciar Atendimento"
+          class="start-button"
           @click="startTicket"
-        />
+        >
+          <q-tooltip>Clique para iniciar o atendimento</q-tooltip>
+        </q-btn>
       </div>
     </template>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useQuasar, uid, LocalStorage } from 'quasar'
-import { useChat } from '../../../composables/useChat'
-import { useTickets } from '../../../composables/useTickets'
-import { useAudioRecorder } from '../../../composables/useAudioRecorder'
+/**
+ * Componente de input de mensagens
+ * @component
+ * @description Permite envio de mensagens, arquivos e áudios
+ */
+
+import { ref, onMounted, onUnmounted } from 'vue'
+import { useMessageInput } from '../../composables/chat/useMessageInput'
+import { useAudioRecorder } from '../../composables/audio/useAudioRecording'
+import { useTicketStatus } from '../../composables/chat/useTicketStatus'
+
+// Componentes
 import QuickMessagesMenu from './QuickMessagesMenu.vue'
 import MessageActionButtons from './MessageActionButtons.vue'
 import MessageInputField from './MessageInputField.vue'
@@ -120,149 +160,117 @@ import AudioRecordingControls from './AudioRecordingControls.vue'
 import MediaPreviewModal from './MediaPreviewModal.vue'
 import ScheduleDatePicker from './ScheduleDatePicker.vue'
 
-// Props
+/**
+ * Props do componente
+ */
 const props = defineProps({
+  /** Mensagem sendo respondida */
   replyingMessage: {
     type: Object,
     default: null
   },
+  /** Modo de agendamento */
   isScheduleMode: {
     type: Boolean,
     default: false
   },
+  /** Lista de mensagens rápidas */
   quickMessages: {
     type: Array,
     default: () => []
   }
 })
 
-// Emits
+/**
+ * Eventos que o componente pode emitir
+ */
 const emit = defineEmits(['update:replyingMessage'])
 
-// Composables
-const $q = useQuasar()
-const { sendMessage: sendChatMessage, scrollToBottom } = useChat()
-const { ticketStatus, startTicket } = useTickets()
-const { startRecording, stopRecording, isRecording } = useAudioRecorder()
+/**
+ * Refs para componentes filhos
+ */
+const menuFast = ref(null)
+const fileUpload = ref(null)
 
-// Estado
-const loading = ref(false)
-const messageText = ref('')
-const files = ref([])
-const sign = ref(LocalStorage.getItem('sign') ?? false)
-const scheduleDate = ref(null)
-const showQuickMessages = ref(false)
-const showMediaPreview = ref(false)
-const mediaPreview = ref({ title: '', src: '' })
-const isRecordingAudio = ref(false)
+/**
+ * Composables
+ */
+const { startTicket } = useTicketStatus()
+const { startRecording, stopRecording } = useAudioRecorder()
 
-// Computed
-const showFileUpload = computed(() => files.value.length > 0)
-const isActionsDisabled = computed(() => 
-  isRecordingAudio.value || ticketStatus.value !== 'open'
-)
+const {
+  loading,
+  messageText,
+  files,
+  sign,
+  scheduleDate,
+  showQuickMessages,
+  showMediaPreview,
+  mediaPreview,
+  isRecordingAudio,
+  inputRef,
+  showFileUpload,
+  isActionsDisabled,
+  handleQuickMessageSelect,
+  handleSign,
+  handlePaste,
+  sendMessage,
+  resetForm,
+  handleRejectedFiles
+} = useMessageInput({ 
+  emit,
+  replyingMessage: props.replyingMessage 
+})
 
-// Métodos
-const handleQuickMessageSelect = (message) => {
-  messageText.value = message.message
-  setTimeout(() => {
-    inputMessage.value?.focus()
-  }, 300)
-}
-
-const handleSign = (state) => {
-  sign.value = state
-  LocalStorage.set('sign', state)
-}
-
-const handlePaste = async (event) => {
-  const file = event.clipboardData.files[0]
-  if (file) {
-    messageText.value = ''
-    files.value = [file]
-    showMediaPreview.value = true
-    mediaPreview.value = {
-      title: `Enviar imagem`,
-      src: URL.createObjectURL(file)
-    }
-  }
-}
-
-const sendMessage = async () => {
-  if (props.isScheduleMode && !scheduleDate.value) {
-    $q.notify({
-      type: 'warning',
-      message: 'Para agendar uma mensagem, informe a data/hora.',
-      position: 'top'
-    })
-    return
-  }
-
+/**
+ * Manipuladores de áudio
+ */
+const startAudioRecording = async () => {
   try {
-    loading.value = true
-    
-    const message = prepareMessage()
-    await sendChatMessage(message)
-    
-    resetForm()
-    scrollToBottom()
+    await startRecording()
+    isRecordingAudio.value = true
   } catch (error) {
-    $q.notify({
-      type: 'negative',
-      message: 'Erro ao enviar mensagem',
-      position: 'top'
-    })
-    console.error('Erro ao enviar mensagem:', error)
-  } finally {
-    loading.value = false
+    console.error('Erro ao iniciar gravação:', error)
   }
 }
 
-const prepareMessage = () => {
-  if (showFileUpload.value) {
-    return prepareFileMessage()
-  }
-  return prepareTextMessage()
-}
-
-const prepareTextMessage = () => {
-  let text = messageText.value.trim()
-  if (!text) throw new Error('Mensagem vazia')
-
-  if (sign.value) {
-    const username = LocalStorage.getItem('username')
-    text = `*${username}*:\n ${text}`
-  }
-
-  return {
-    id: uid(),
-    body: text,
-    fromMe: true,
-    scheduleDate: scheduleDate.value,
-    quotedMsg: props.replyingMessage
+const stopAudioRecording = async () => {
+  try {
+    const audioBlob = await stopRecording()
+    files.value = [
+      new File([audioBlob], 'audio.mp3', { type: 'audio/mp3' })
+    ]
+    isRecordingAudio.value = false
+    sendMessage()
+  } catch (error) {
+    console.error('Erro ao parar gravação:', error)
   }
 }
 
-const prepareFileMessage = () => {
-  const formData = new FormData()
-  files.value.forEach(file => {
-    formData.append('medias', file)
-    formData.append('body', file.name)
-  })
-  
-  if (scheduleDate.value) {
-    formData.append('scheduleDate', scheduleDate.value)
-  }
-  
-  return formData
+const cancelAudioRecording = () => {
+  stopRecording()
+  isRecordingAudio.value = false
 }
 
-const resetForm = () => {
-  messageText.value = ''
-  files.value = []
+/**
+ * Manipuladores de emoji e vídeo
+ */
+const insertEmoji = (emoji) => {
+  messageText.value += emoji.data
+  inputRef.value?.focus()
+}
+
+const sendVideoLink = (link) => {
+  messageText.value = link
+  sendMessage()
+}
+
+/**
+ * Manipulador de preview
+ */
+const hideMediaPreview = () => {
   showMediaPreview.value = false
-  mediaPreview.value = { title: '', src: '' }
-  emit('update:replyingMessage', null)
+  files.value = []
 }
 
 // Lifecycle
@@ -276,13 +284,116 @@ onUnmounted(() => {
 </script>
 
 <style lang="scss" scoped>
-.input-message {
-  @media (max-width: 850px) {
-    width: 150px;
+.message-input {
+  // Container principal
+  .input-container {
+    min-height: 80px;
+    padding: 8px 16px;
+    border-top: 1px solid rgba(0, 0, 0, 0.12);
+    transition: all 0.3s ease;
   }
 
-  @media (min-width: 851px) and (max-width: 1360px) {
-    width: 200px !important;
+  // Campo de mensagem
+  .message-field {
+    transition: all 0.3s ease;
+
+    // Mensagem sendo respondida
+    .replying-message {
+      border-radius: 8px;
+      margin-bottom: 8px;
+      transition: all 0.3s ease;
+
+      &:hover {
+        background: rgba(var(--q-primary-rgb), 0.1);
+      }
+
+      .q-btn {
+        opacity: 0.7;
+        transition: all 0.3s ease;
+
+        &:hover {
+          opacity: 1;
+          transform: scale(1.1);
+        }
+      }
+    }
   }
+
+  // Botão de iniciar atendimento
+  .start-ticket {
+    min-height: 80px;
+    
+    .start-button {
+      width: 250px;
+      transition: all 0.3s ease;
+
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      &:active {
+        transform: translateY(0);
+      }
+    }
+  }
+}
+
+// Tema escuro
+:deep(.body--dark) {
+  .message-input {
+    .input-container {
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+
+    .replying-message {
+      background: rgba(255, 255, 255, 0.05);
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+    }
+
+    .start-button {
+      &:hover {
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+      }
+    }
+  }
+}
+
+// Responsividade
+@media (max-width: 599px) {
+  .message-input {
+    .input-container {
+      padding: 8px;
+    }
+
+    .start-button {
+      width: 200px;
+    }
+  }
+}
+
+// Animações
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slide-up-enter-from,
+.slide-up-leave-to {
+  opacity: 0;
+  transform: translateY(20px);
 }
 </style>

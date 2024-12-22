@@ -1,254 +1,282 @@
 <template>
-  <div v-if="userProfile === 'admin'">
+  <div v-if="userProfile === 'admin'" class="usuarios-page">
     <q-table
       class="my-sticky-dynamic q-ma-lg"
-      title="Usuarios"
+      title="Usuários"
       :data="usuarios"
       :columns="columns"
       :loading="loading"
       row-key="id"
-      :pagination.sync="pagination"
+      :pagination="pagination"
       :rows-per-page-options="[0]"
+      @virtual-scroll="onScroll"
     >
-      <template v-slot:top-right>
-        <q-input
-          style="width: 300px"
-          outlined
-          rounded
-          dense
-          class="col-grow"
-          debounce="500"
-          v-model="filter"
-          clearable
-          placeholder="Localize"
-          @input="filtrarUsuario"
-        >
-          <template v-slot:prepend>
-            <q-icon name="search" />
-          </template>
-        </q-input>
-        <q-space />
-        <q-btn
-          rounded
-          class="q-ml-md col"
-          :class="{
-            'q-ml-none q-mt-md q-mr-md': $q.screen.width < 500
-          }"
-          color="primary"
-          label="Adicionar"
-          @click="usuarioSelecionado = {}; modalUsuario = true"
-        />
-
-      </template>
-      <template v-slot:body-cell-acoes="props">
-        <q-td class="text-center">
-          <q-btn
-            flat
-            round
-            icon="mdi-arrow-decision-outline"
-            @click="gerirFilasUsuario(props.row)"
+      <!-- Cabeçalho -->
+      <template #top-right>
+        <div class="row q-gutter-md items-center">
+          <!-- Busca -->
+          <q-input
+            v-model="filter"
+            outlined
+            rounded
+            dense
+            debounce="500"
+            placeholder="Buscar usuário"
+            clearable
+            class="col-grow"
+            style="min-width: 300px"
+            @update:model-value="filtrarUsuario"
           >
-            <q-tooltip>
-              Gestão de Filas do usuário
-            </q-tooltip>
+            <template #prepend>
+              <q-icon name="search" />
+            </template>
+            <template #append v-if="filter">
+              <q-icon name="close" class="cursor-pointer" @click="filter = null; filtrarUsuario(null)" />
+            </template>
+          </q-input>
+
+          <!-- Botão Adicionar -->
+          <q-btn
+            color="primary"
+            icon="add"
+            label="Adicionar"
+            rounded
+            @click="handleAddUsuario"
+          >
+            <q-tooltip>Adicionar novo usuário</q-tooltip>
           </q-btn>
-          <q-btn
-            flat
-            round
-            icon="edit"
-            @click="editarUsuario(props.row)"
-          />
-          <q-btn
-            flat
-            round
-            icon="mdi-delete"
-            @click="deletarUsuario(props.row)"
-          />
+        </div>
+      </template>
+
+      <!-- Coluna Filas -->
+      <template #body-cell-queues="props">
+        <q-td>
+          <div class="queues-content">
+            {{ props.value ? props.value.map(f => f.queue).join(', ') : '' }}
+            <q-tooltip v-if="props.value?.length">
+              {{ props.value.map(f => f.queue).join(', ') }}
+            </q-tooltip>
+          </div>
         </q-td>
       </template>
-      <template v-slot:pagination="{ pagination }">
-        {{ usuarios.length }}/{{ pagination.rowsNumber }}
+
+      <!-- Coluna Ações -->
+      <template #body-cell-acoes="props">
+        <q-td class="text-center">
+          <div class="row justify-center q-gutter-sm">
+            <!-- Gestão de Filas -->
+            <q-btn
+              flat
+              round
+              icon="mdi-arrow-decision-outline"
+              color="info"
+              @click="gerirFilasUsuario(props.row)"
+            >
+              <q-tooltip>Gestão de Filas do usuário</q-tooltip>
+            </q-btn>
+
+            <!-- Editar -->
+            <q-btn
+              flat
+              round
+              icon="edit"
+              color="warning"
+              @click="editarUsuario(props.row)"
+            >
+              <q-tooltip>Editar usuário</q-tooltip>
+            </q-btn>
+
+            <!-- Excluir -->
+            <q-btn
+              flat
+              round
+              icon="delete"
+              color="negative"
+              @click="deletarUsuario(props.row)"
+            >
+              <q-tooltip>Excluir usuário</q-tooltip>
+            </q-btn>
+          </div>
+        </q-td>
+      </template>
+
+      <!-- Paginação -->
+      <template #pagination="{ pagination }">
+        <div class="row items-center justify-end">
+          {{ usuarios.length }}/{{ pagination.rowsNumber }}
+        </div>
+      </template>
+
+      <!-- Loading -->
+      <template #loading>
+        <q-inner-loading showing color="primary">
+          <q-spinner-dots size="50px" color="primary" />
+        </q-inner-loading>
+      </template>
+
+      <!-- Sem Dados -->
+      <template #no-data>
+        <div class="full-width row flex-center q-pa-md text-grey-8">
+          <q-icon name="mdi-account-off" size="2em" class="q-mr-sm" />
+          Nenhum usuário encontrado
+        </div>
       </template>
     </q-table>
+
+    <!-- Modais -->
     <ModalUsuario
-      :modalUsuario.sync="modalUsuario"
-      @modalUsuario:usuario-editado="UPDATE_USUARIO"
-      @modalUsuario:usuario-criado="usuarioCriado"
-      :usuarioEdicao.sync="usuarioSelecionado"
+      v-model="modalUsuario"
+      v-model:usuario-edicao="usuarioSelecionado"
+      @modal-usuario:usuario-editado="UPDATE_USUARIO"
+      @modal-usuario:usuario-criado="usuarioCriado"
     />
+
     <ModalFilaUsuario
-      :modalFilaUsuario.sync="modalFilaUsuario"
-      :usuarioSelecionado.sync="usuarioSelecionado"
+      v-model="modalFilaUsuario"
+      v-model:usuario-selecionado="usuarioSelecionado"
       :filas="filas"
-      @modalFilaUsuario:sucesso="UPDATE_USUARIO"
+      @modal-fila-usuario:sucesso="UPDATE_USUARIO"
     />
   </div>
 </template>
 
-<script>
-// const userId = +localStorage.getItem('userId')
-import { ListarUsuarios, DeleteUsuario } from 'src/service/user'
-import { ListarFilas } from 'src/service/filas'
-import ModalUsuario from './ModalUsuario'
-import ModalFilaUsuario from './ModalFilaUsuario'
-export default {
-  name: 'IndexUsuarios',
-  components: { ModalUsuario, ModalFilaUsuario },
-  data () {
-    return {
-      userProfile: 'user',
-      usuarios: [],
-      usuarioSelecionado: {},
-      modalFilaUsuario: false,
-      filas: [],
-      optionsProfile: [
-        { value: 'user', label: 'Usuário' },
-        { value: 'admin', label: 'Administrador' }
-      ],
-      modalUsuario: false,
-      filter: null,
-      pagination: {
-        rowsPerPage: 40,
-        rowsNumber: 0,
-        lastIndex: 0
-      },
-      params: {
-        pageNumber: 1,
-        searchParam: null,
-        hasMore: true
-      },
-      loading: false,
-      columns: [
-        { name: 'name', label: 'Nome', field: 'name', align: 'left' },
-        { name: 'email', label: 'E-mail', field: 'email', align: 'left' },
-        {
-          name: 'queues',
-          label: 'Filas',
-          field: 'queues',
-          align: 'left',
-          format: (v) => !v ? '' : v.map(f => f.queue).join(', '),
-          classes: 'ellipsis',
-          style: 'max-width: 400px;'
-        },
-        { name: 'profile', label: 'Perfil', field: 'profile', align: 'left', format: (v) => this.optionsProfile.find(o => o.value == v).label },
-        { name: 'acoes', label: 'Ações', field: 'acoes', align: 'center' }
-      ]
-    }
-  },
-  methods: {
-    LOAD_USUARIOS (users) {
-      const newUsers = []
-      users.forEach(user => {
-        const userIndex = this.usuarios.findIndex(c => c.id === user.id)
-        if (userIndex !== -1) {
-          this.usuarios[userIndex] = user
-        } else {
-          newUsers.push(user)
-        }
-      })
-      const usersObj = [...this.usuarios, ...newUsers]
-      this.usuarios = usersObj.filter(usuario => usuario.profile !== 'super')
-    },
-    UPDATE_USUARIO (usuario) {
-      let newUsuarios = [...this.usuarios]
-      const usuarioIndex = newUsuarios.findIndex(c => c.id === usuario.id)
-      if (usuarioIndex !== -1) {
-        newUsuarios[usuarioIndex] = usuario
-      } else {
-        newUsuarios = [usuario, ...newUsuarios]
-      }
-      this.usuarios = [...newUsuarios]
-    },
-    DELETE_USUARIO (userId) {
-      const newObj = [...this.usuarios.filter(u => u.id !== userId)]
-      this.usuarios = [...newObj]
-    },
-    async listarUsuarios () {
-      this.loading = true
-      const { data } = await ListarUsuarios(this.params)
-      this.usuarios = data.users
-      this.LOAD_USUARIOS(data.users)
-      this.params.hasMore = data.hasMore
-      this.pagination.lastIndex = this.usuarios.length - 1
-      this.pagination.rowsNumber = data.count
-      this.loading = false
-    },
-    filtrarUsuario (data) {
-      this.usuarios = []
-      this.params.pageNumber = 1
-      this.params.searchParam = data
-      this.listarUsuarios()
-    },
-    onScroll ({ to, ref, ...all }) {
-      if (this.loading !== true && this.params.hasMore === true && to === this.pagination.lastIndex) {
-        this.params.pageNumber++
-        this.listarUsuarios()
-      }
-    },
-    usuarioCriado (usuario) {
-      const obj = [...this.usuarios]
-      obj.push(usuario)
-      this.usuarios = [...obj]
-    },
-    editarUsuario (usuario) {
-      this.usuarioSelecionado = usuario
-      this.modalUsuario = true
-    },
-    deletarUsuario (usuario) {
-      this.$q.dialog({
-        title: `Atenção!! Deseja realmente deletar o usuario "${usuario.name}"?`,
-        // message: 'Mensagens antigas não serão apagadas no whatsapp.',
-        cancel: {
-          label: 'Não',
-          color: 'primary',
-          push: true
-        },
-        ok: {
-          label: 'Sim',
-          color: 'negative',
-          push: true
-        },
-        persistent: true
-      }).onOk(() => {
-        this.loading = true
-        DeleteUsuario(usuario.id)
-          .then(res => {
-            this.DELETE_USUARIO(usuario.id)
-            this.$q.notify({
-              type: 'positive',
-              progress: true,
-              position: 'top',
-              message: `Usuario ${usuario.name} deletado!`,
-              actions: [{
-                icon: 'close',
-                round: true,
-                color: 'white'
-              }]
-            })
-          })
-          .catch(error => {
-            console.error(error)
-            this.$notificarErro('Não é possível deletar o usuário', error)
-          })
-        this.loading = false
-      })
-    },
-    async listarFilas () {
-      const { data } = await ListarFilas()
-      this.filas = data
-    },
-    gerirFilasUsuario (usuario) {
-      this.usuarioSelecionado = usuario
-      this.modalFilaUsuario = true
-    }
-  },
-  async mounted () {
-    this.userProfile = localStorage.getItem('profile')
-    await this.listarFilas()
-    await this.listarUsuarios()
-  }
+<script setup>
+import { ref, onMounted } from 'vue'
+import { useUsuarios } from '../../composables/usuarios/useUsuarios'
+import ModalUsuario from './ModalUsuario.vue'
+import ModalFilaUsuario from './ModalFilaUsuario.vue'
+
+// Estado
+const userProfile = ref(localStorage.getItem('profile'))
+
+// Composables
+const {
+  loading,
+  usuarios,
+  usuarioSelecionado,
+  modalFilaUsuario,
+  filas,
+  modalUsuario,
+  filter,
+  pagination,
+  params,
+  optionsProfile,
+  columns,
+  LOAD_USUARIOS,
+  UPDATE_USUARIO,
+  DELETE_USUARIO,
+  listarUsuarios,
+  filtrarUsuario,
+  onScroll,
+  usuarioCriado,
+  editarUsuario,
+  deletarUsuario,
+  listarFilas,
+  gerirFilasUsuario,
+  initialize
+} = useUsuarios()
+
+// Handlers
+const handleAddUsuario = () => {
+  usuarioSelecionado.value = {}
+  modalUsuario.value = true
 }
+
+// Lifecycle
+onMounted(() => {
+  initialize()
+})
 </script>
 
 <style lang="scss" scoped>
+.usuarios-page {
+  // Tabela
+  .my-sticky-dynamic {
+    // Cabeçalho fixo
+    .q-table__top,
+    .q-table__bottom,
+    thead tr:first-child th {
+      background-color: #fff;
+      transition: background-color 0.3s ease;
+    }
+
+    thead tr th {
+      position: sticky;
+      z-index: 1;
+    }
+
+    thead tr:last-child th {
+      top: 48px;
+    }
+
+    thead tr:first-child th {
+      top: 0;
+    }
+  }
+
+  // Campo de busca
+  .q-input {
+    .q-field__control {
+      transition: all 0.3s ease;
+
+      &:hover {
+        border-color: var(--q-primary);
+      }
+    }
+  }
+
+  // Conteúdo das filas
+  .queues-content {
+    max-width: 400px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: all 0.3s ease;
+
+    &:hover {
+      opacity: 0.8;
+      cursor: help;
+    }
+  }
+
+  // Botões
+  .q-btn {
+    opacity: 0.9;
+    transition: all 0.3s ease;
+
+    &:hover {
+      opacity: 1;
+      transform: scale(1.05);
+    }
+  }
+}
+
+// Tema escuro
+:deep(.body--dark) {
+  .usuarios-page {
+    .my-sticky-dynamic {
+      .q-table__top,
+      .q-table__bottom,
+      thead tr:first-child th {
+        background-color: $dark;
+      }
+    }
+  }
+}
+
+// Responsividade
+@media (max-width: 599px) {
+  .usuarios-page {
+    .q-table {
+      .q-table__top {
+        flex-direction: column;
+        
+        .row {
+          width: 100%;
+          margin: 8px 0;
+        }
+      }
+    }
+  }
+}
 </style>

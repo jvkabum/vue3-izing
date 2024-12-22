@@ -1,111 +1,116 @@
 <template>
-  <div v-if="userProfile === 'admin'">
-    <q-card
-      class="q-ma-sm "
-      square
-    >
-      <div class="text-h5 q-pa-sm q-ma-sm">
-        Horário de Atendimento
-        <q-icon name="help">
-          <q-tooltip content-class="bg-light-blue-1 text-black q-pa-sm shadow-4">
-            <span class="text-weight-medium"> Tipos de horário: </span>
-            <span class="row col">
-              Aberto: Estabelecimento aberto durante todo o dia. Não será feito envio de mensagem de ausência;
-            </span>
-            <span class="row col">
-              Fechado: Estabelecimento fechado durante todo o dia. Será feito envio de mensagem de ausência, independente do horário;
-            </span>
-            <span class="row col">
-              Horário: Representa o horário de funcionamento do estabelecimento. O sistema enviará mensagem de ausênica quando mensagens forem recebidas fora dos horários estabelecidos.
-            </span>
-            <span class="row col">
-              **Importante: A mensagem de ausência será enviada após o encerramento do atendimento automático.
-            </span>
-          </q-tooltip>
-        </q-icon>
+  <div v-if="userProfile === 'admin'" class="horario-atendimento">
+    <!-- Card de Horários -->
+    <q-card class="q-ma-sm" square>
+      <div class="text-h5 q-pa-sm q-ma-sm row items-center justify-between">
+        <div class="row items-center">
+          Horário de Atendimento
+          <q-icon name="help" class="q-ml-sm">
+            <q-tooltip class="bg-light-blue-1 text-black q-pa-sm shadow-4">
+              <span class="text-weight-medium">Tipos de horário:</span>
+              <div class="q-mt-sm">
+                <div class="row q-mb-sm">
+                  <b>Aberto:</b> Estabelecimento aberto durante todo o dia. Não será feito envio de mensagem de ausência.
+                </div>
+                <div class="row q-mb-sm">
+                  <b>Fechado:</b> Estabelecimento fechado durante todo o dia. Será feito envio de mensagem de ausência, independente do horário.
+                </div>
+                <div class="row q-mb-sm">
+                  <b>Horário:</b> Representa o horário de funcionamento do estabelecimento. O sistema enviará mensagem de ausência quando mensagens forem recebidas fora dos horários estabelecidos.
+                </div>
+                <div class="row text-italic">
+                  **Importante: A mensagem de ausência será enviada após o encerramento do atendimento automático.
+                </div>
+              </div>
+            </q-tooltip>
+          </q-icon>
+        </div>
 
         <q-btn
           rounded
           color="positive"
+          icon="save"
           label="Salvar"
-          class="float-right"
           @click="salvarHorariosAtendimento"
         />
       </div>
+
       <q-separator />
+
+      <!-- Grid de Horários -->
       <q-card-section>
         <div class="row q-col-gutter-sm">
           <div
-            class="col-xs-12 col-sm-4 q-mt-sm"
             v-for="dia in businessHours"
             :key="dia.value"
+            class="col-xs-12 col-sm-4 q-mt-sm"
           >
-            <q-card
-              square
-              bordered
-              flat
-            >
+            <q-card square bordered flat>
+              <!-- Cabeçalho do Dia -->
               <div class="text-body1 text-bold bg-grey-3 q-pa-xs q-pl-sm">
                 {{ dia.label }}
               </div>
+
               <q-separator />
+
+              <!-- Conteúdo do Dia -->
               <q-card-section class="q-pt-none">
+                <!-- Tipo de Horário -->
                 <q-option-group
-                  inline
-                  class="row justify-between q-mb-md"
                   v-model="dia.type"
                   :options="optType"
                   color="primary"
+                  inline
+                  class="row justify-between q-mb-md"
                 />
 
+                <!-- Primeiro Horário -->
                 <div class="row items-baseline q-gutter-sm">
                   <q-input
+                    v-model="dia.hr1"
                     :disable="dia.type !== 'H'"
                     dense
                     rounded
                     outlined
                     class="col-grow"
-                    error-message="Obrigatório"
-                    hide-underline
                     type="time"
-                    v-model="dia.hr1"
+                    hide-bottom-space
                   />
                   <h6>às</h6>
                   <q-input
+                    v-model="dia.hr2"
                     :disable="dia.type !== 'H'"
                     dense
                     rounded
                     outlined
                     class="col-grow"
-                    error-message="Obrigatório"
-                    hide-underline
                     type="time"
-                    v-model="dia.hr2"
+                    hide-bottom-space
                   />
                 </div>
-                <div class="row items-baseline q-gutter-sm">
+
+                <!-- Segundo Horário -->
+                <div class="row items-baseline q-gutter-sm q-mt-sm">
                   <q-input
+                    v-model="dia.hr3"
                     :disable="dia.type !== 'H'"
                     dense
                     rounded
                     outlined
                     class="col-grow"
-                    error-message="Obrigatório"
-                    hide-underline
                     type="time"
-                    v-model="dia.hr3"
+                    hide-bottom-space
                   />
                   <h6>às</h6>
                   <q-input
+                    v-model="dia.hr4"
                     :disable="dia.type !== 'H'"
                     dense
-                    outlined
                     rounded
+                    outlined
                     class="col-grow"
-                    error-message="Obrigatório"
-                    hide-underline
                     type="time"
-                    v-model="dia.hr4"
+                    hide-bottom-space
                   />
                 </div>
               </q-card-section>
@@ -114,37 +119,29 @@
         </div>
       </q-card-section>
     </q-card>
-    <q-card class="q-ma-sm q-mt-md full-full-height">
-      <div class="text-h6 q-pa-sm q-ma-sm">
-        Mensagem de Ausência
+
+    <!-- Card de Mensagem -->
+    <q-card class="q-ma-sm q-mt-md">
+      <div class="text-h6 q-pa-sm q-ma-sm row items-center justify-between">
+        <div>Mensagem de Ausência</div>
         <q-btn
-          color="positive"
-          label="Salvar"
           rounded
-          class="float-right"
+          color="positive"
+          icon="save"
+          label="Salvar"
           @click="salvarMensagemAusencia"
         />
       </div>
+
       <q-card-section class="q-pt-none">
         <div class="row items-center">
+          <!-- Botões de Inserção -->
           <div class="col-xs-3 col-sm-2 col-md-1">
-            <q-btn
-              round
-              flat
-              class="q-ml-sm"
-            >
-              <q-icon
-                size="2em"
-                name="mdi-emoticon-happy-outline"
-              />
-              <q-tooltip>
-                Emoji
-              </q-tooltip>
-              <q-menu
-                anchor="top right"
-                self="bottom middle"
-                :offset="[5, 40]"
-              >
+            <!-- Emoji -->
+            <q-btn round flat class="q-ml-sm">
+              <q-icon size="2em" name="mdi-emoticon-happy-outline" />
+              <q-tooltip>Emoji</q-tooltip>
+              <q-menu anchor="top right" self="bottom middle" :offset="[5, 40]">
                 <VEmojiPicker
                   style="width: 40vw"
                   :showSearch="false"
@@ -155,39 +152,37 @@
                 />
               </q-menu>
             </q-btn>
-            <q-btn round
-            flat
-            dense>
-            <q-icon size="2em"
-              name="mdi-variable" />
-            <q-tooltip>
-              Variáveis
-            </q-tooltip>
-            <q-menu touch-position>
-              <q-list dense
-                style="min-width: 100px">
-                <q-item v-for="variavel in variaveis"
-                  :key="variavel.label"
-                  clickable
-                  @click="onInsertSelectVariable(variavel.value)"
-                  v-close-popup>
-                  <q-item-section>{{ variavel.label }}</q-item-section>
-                </q-item>
-              </q-list>
-            </q-menu>
-          </q-btn>
+
+            <!-- Variáveis -->
+            <q-btn round flat dense>
+              <q-icon size="2em" name="mdi-variable" />
+              <q-tooltip>Variáveis</q-tooltip>
+              <q-menu touch-position>
+                <q-list dense style="min-width: 100px">
+                  <q-item
+                    v-for="variavel in variaveis"
+                    :key="variavel.label"
+                    clickable
+                    @click="onInsertSelectVariable(variavel.value)"
+                    v-close-popup
+                  >
+                    <q-item-section>{{ variavel.label }}</q-item-section>
+                  </q-item>
+                </q-list>
+              </q-menu>
+            </q-btn>
           </div>
+
+          <!-- Campo de Mensagem -->
           <div class="col-xs-8 col-sm-10 col-md-11 q-pl-sm">
             <textarea
               ref="inputEnvioMensagem"
-              style="min-height: 9vh; max-height: 9vh;"
-              class="q-pa-sm bg-white rounded-all full-width"
+              v-model="messageBusinessHours"
+              class="message-input q-pa-sm bg-white rounded-borders full-width"
               placeholder="Digite a mensagem"
               autogrow
               dense
               outlined
-              @input="(v) => messageBusinessHours = v.target.value"
-              :value="messageBusinessHours"
             />
           </div>
         </div>
@@ -196,101 +191,96 @@
   </div>
 </template>
 
-<script>
+<script setup>
+import { ref, onMounted } from 'vue'
 import { VEmojiPicker } from 'v-emoji-picker'
-import { MostrarHorariosAtendiemento, AtualizarHorariosAtendiemento, AtualizarMensagemHorariosAtendiemento } from 'src/service/empresas'
-export default {
-  name: 'HorarioAtendimento',
-  components: { VEmojiPicker },
-  data () {
-    return {
-      userProfile: 'user',
-      optType: [
-        { value: 'O', label: 'Aberto' },
-        { value: 'C', label: 'Fechado' },
-        { value: 'H', label: 'Horário' }
-      ],
-      variaveis: [
-        { label: 'Nome', value: '{{name}}' },
-        { label: 'Saudação', value: '{{greeting}}' }
-      ],
-      businessHours: [
-        { day: 0, label: 'Domingo', type: 'O', hr1: '08:00', hr2: '12:00', hr3: '14:00', hr4: '18:00' },
-        { day: 1, label: 'Segunda-Feira', type: 'O', hr1: '08:00', hr2: '12:00', hr3: '14:00', hr4: '18:00' },
-        { day: 2, label: 'Terça-Feira', type: 'O', hr1: '08:00', hr2: '12:00', hr3: '14:00', hr4: '18:00' },
-        { day: 3, label: 'Quarta-Feira', type: 'O', hr1: '08:00', hr2: '12:00', hr3: '14:00', hr4: '18:00' },
-        { day: 4, label: 'Quinta-Feira', type: 'O', hr1: '08:00', hr2: '12:00', hr3: '14:00', hr4: '18:00' },
-        { day: 5, label: 'Sexta-Feira', type: 'O', hr1: '08:00', hr2: '12:00', hr3: '14:00', hr4: '18:00' },
-        { day: 6, label: 'Sábado', type: 'O', hr1: '08:00', hr2: '12:00', hr3: '14:00', hr4: '18:00' }
-      ],
-      messageBusinessHours: null
-    }
-  },
-  methods: {
-    onInsertSelectVariable (variable) {
-      const self = this
-      var tArea = this.$refs.inputEnvioMensagem
-      // get cursor's position:
-      var startPos = tArea.selectionStart,
-        endPos = tArea.selectionEnd,
-        cursorPos = startPos,
-        tmpStr = tArea.value
-      // filter:
-      if (!variable) {
-        return
-      }
-      // insert:
-      self.txtContent = this.messageBusinessHours
-      self.txtContent = tmpStr.substring(0, startPos) + variable + tmpStr.substring(endPos, tmpStr.length)
-      this.messageBusinessHours = self.txtContent
-      // move cursor:
-      setTimeout(() => {
-        tArea.selectionStart = tArea.selectionEnd = cursorPos + 1
-      }, 10)
-    },
-    onInsertSelectEmoji (emoji) {
-      const self = this
-      var tArea = this.$refs.inputEnvioMensagem
-      // get cursor's position:
-      var startPos = tArea.selectionStart,
-        endPos = tArea.selectionEnd,
-        cursorPos = startPos,
-        tmpStr = tArea.value
-      // filter:
-      if (!emoji.data) {
-        return
-      }
-      // insert:
-      self.txtContent = this.messageBusinessHours
-      self.txtContent = tmpStr.substring(0, startPos) + emoji.data + tmpStr.substring(endPos, tmpStr.length)
-      this.messageBusinessHours = self.txtContent
-      // move cursor:
-      setTimeout(() => {
-        tArea.selectionStart = tArea.selectionEnd = cursorPos + emoji.data.length
-      }, 10)
-    },
-    async listarMensagemHorariosAtendimento () {
-      const { data } = await MostrarHorariosAtendiemento()
-      this.businessHours = data.businessHours
-      this.messageBusinessHours = data.messageBusinessHours
-    },
-    async salvarHorariosAtendimento () {
-      const { data } = await AtualizarHorariosAtendiemento(this.businessHours)
-      this.businessHours = data.businessHours
-    },
-    async salvarMensagemAusencia () {
-      const { data } = await AtualizarMensagemHorariosAtendiemento({
-        messageBusinessHours: this.messageBusinessHours
-      })
-      this.messageBusinessHours = data.messageBusinessHours
-    }
-  },
-  mounted () {
-    this.userProfile = localStorage.getItem('profile')
-    this.listarMensagemHorariosAtendimento()
-  }
-}
+import { useHorarioAtendimento } from '../../composables/horarioAtendimento/useHorarioAtendimento'
+
+// Estado
+const userProfile = ref(localStorage.getItem('profile'))
+
+// Composables
+const {
+  messageBusinessHours,
+  inputEnvioMensagem,
+  businessHours,
+  optType,
+  variaveis,
+  listarHorariosAtendimento,
+  salvarHorariosAtendimento,
+  salvarMensagemAusencia,
+  onInsertSelectVariable,
+  onInsertSelectEmoji
+} = useHorarioAtendimento()
+
+// Lifecycle
+onMounted(() => {
+  listarHorariosAtendimento()
+})
 </script>
 
 <style lang="scss" scoped>
+.horario-atendimento {
+  // Cards
+  .q-card {
+    transition: all 0.3s ease;
+
+    &:hover {
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+  }
+
+  // Inputs
+  .q-input {
+    transition: all 0.3s ease;
+
+    &:hover:not(.q-field--disabled) {
+      .q-field__control {
+        border-color: var(--q-primary);
+      }
+    }
+  }
+
+  // Botões
+  .q-btn {
+    opacity: 0.9;
+    transition: all 0.3s ease;
+
+    &:hover {
+      opacity: 1;
+      transform: scale(1.05);
+    }
+  }
+
+  // Campo de mensagem
+  .message-input {
+    min-height: 9vh;
+    max-height: 9vh;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 8px;
+    resize: none;
+
+    &:hover, &:focus {
+      border-color: var(--q-primary);
+    }
+  }
+}
+
+// Tema escuro
+:deep(.body--dark) {
+  .horario-atendimento {
+    .q-card:hover {
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .message-input {
+      border-color: rgba(255, 255, 255, 0.12);
+
+      &:hover, &:focus {
+        border-color: var(--q-primary);
+      }
+    }
+  }
+}
 </style>

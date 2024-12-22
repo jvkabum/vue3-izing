@@ -161,7 +161,6 @@ const {
 </script>
 
 <style lang="scss" scoped>
-// Container principal
 .attendance-header {
   // Toolbar principal
   .toolbar-main {
@@ -201,46 +200,46 @@ const {
         }
       }
     }
-  }
 
-  // Botões arredondados
-  .btn-rounded {
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    padding: 0;
-    transition: all 0.3s ease;
+    // Botões arredondados
+    .btn-rounded {
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      transition: all 0.3s ease;
 
-    &:hover {
-      transform: scale(1.05);
-      opacity: 0.9;
-    }
-  }
-
-  // Tooltips
-  :deep(.q-tooltip) {
-    font-size: 12px;
-    background: $grey-9;
-    color: white;
-    border-radius: 4px;
-    padding: 4px 8px;
-  }
-
-  // Responsividade
-  @media (max-width: 599px) {
-    .toolbar-main {
-      height: 56px;
-    }
-
-    .search-input {
-      :deep(.q-field__control) {
-        height: 36px;
+      &:hover {
+        transform: scale(1.05);
+        opacity: 0.9;
       }
     }
 
-    .btn-rounded {
-      width: 36px;
-      height: 36px;
+    // Tooltips
+    :deep(.q-tooltip) {
+      font-size: 12px;
+      background: $grey-9;
+      color: white;
+      border-radius: 4px;
+      padding: 4px 8px;
+    }
+
+    // Responsividade
+    @media (max-width: 599px) {
+      .toolbar-main {
+        height: 56px;
+      }
+
+      .search-input {
+        :deep(.q-field__control) {
+          height: 36px;
+        }
+      }
+
+      .btn-rounded {
+        width: 36px;
+        height: 36px;
+      }
     }
   }
 }

@@ -1,5 +1,5 @@
 <template>
-  <div v-if="userProfile === 'admin'">
+  <div v-if="userProfile === 'admin'" class="filas-page">
     <q-table
       flat
       bordered
@@ -11,148 +11,180 @@
       :columns="columns"
       :loading="loading"
       row-key="id"
-      :pagination.sync="pagination"
+      :pagination="pagination"
       :rows-per-page-options="[0]"
     >
-      <template v-slot:top-right>
+      <!-- Botão Adicionar -->
+      <template #top-right>
         <q-btn
           color="primary"
+          icon="add"
           label="Adicionar"
           rounded
-          @click="filaEdicao = {}; modalFila = true"
-        />
+          @click="handleAddFila"
+        >
+          <q-tooltip>Adicionar nova fila</q-tooltip>
+        </q-btn>
       </template>
-      <template v-slot:body-cell-isActive="props">
+
+      <!-- Coluna Status -->
+      <template #body-cell-isActive="props">
         <q-td class="text-center">
           <q-icon
             size="24px"
             :name="props.value ? 'mdi-check-circle-outline' : 'mdi-close-circle-outline'"
             :color="props.value ? 'positive' : 'negative'"
-          />
+          >
+            <q-tooltip>
+              {{ props.value ? 'Ativa' : 'Inativa' }}
+            </q-tooltip>
+          </q-icon>
         </q-td>
       </template>
-      <template v-slot:body-cell-acoes="props">
+
+      <!-- Coluna Ações -->
+      <template #body-cell-acoes="props">
         <q-td class="text-center">
-          <q-btn
-            flat
-            round
-            icon="edit"
-            @click="editarFila(props.row)"
-          />
-          <q-btn
-            flat
-            round
-            icon="mdi-delete"
-            @click="deletarFila(props.row)"
-          />
+          <div class="row justify-center q-gutter-sm">
+            <!-- Editar -->
+            <q-btn
+              flat
+              round
+              icon="edit"
+              color="warning"
+              @click="editarFila(props.row)"
+            >
+              <q-tooltip>Editar fila</q-tooltip>
+            </q-btn>
+
+            <!-- Excluir -->
+            <q-btn
+              flat
+              round
+              icon="delete"
+              color="negative"
+              @click="deletarFila(props.row)"
+            >
+              <q-tooltip>Excluir fila</q-tooltip>
+            </q-btn>
+          </div>
         </q-td>
+      </template>
+
+      <!-- Loading -->
+      <template #loading>
+        <q-inner-loading showing color="primary">
+          <q-spinner-dots size="50px" color="primary" />
+        </q-inner-loading>
+      </template>
+
+      <!-- Sem Dados -->
+      <template #no-data>
+        <div class="full-width row flex-center q-pa-md text-grey-8">
+          <q-icon name="queue" size="2em" class="q-mr-sm" />
+          Nenhuma fila encontrada
+        </div>
       </template>
     </q-table>
+
+    <!-- Modal de Fila -->
     <ModalFila
-      :modalFila.sync="modalFila"
-      :filaEdicao.sync="filaEdicao"
+      v-model="modalFila"
+      v-model:fila-edicao="filaEdicao"
       @modal-fila:criada="filaCriada"
       @modal-fila:editada="filaEditada"
     />
   </div>
 </template>
 
-<script>
-import { DeletarFila, ListarFilas } from 'src/service/filas'
-import ModalFila from './ModalFila'
-export default {
-  name: 'Filas',
-  components: {
-    ModalFila
-  },
-  data () {
-    return {
-      userProfile: 'user',
-      filaEdicao: {},
-      modalFila: false,
-      filas: [],
-      pagination: {
-        rowsPerPage: 40,
-        rowsNumber: 0,
-        lastIndex: 0
-      },
-      loading: false,
-      columns: [
-        { name: 'id', label: '#', field: 'id', align: 'left' },
-        { name: 'queue', label: 'Fila', field: 'queue', align: 'left' },
-        { name: 'isActive', label: 'Ativo', field: 'isActive', align: 'center' },
-        { name: 'acoes', label: 'Ações', field: 'acoes', align: 'center' }
-      ]
-    }
-  },
-  methods: {
-    async listarFilas () {
-      const { data } = await ListarFilas()
-      this.filas = data
-    },
-    filaCriada (fila) {
-      const newFilas = [...this.filas]
-      newFilas.push(fila)
-      this.filas = [...newFilas]
-    },
-    filaEditada (fila) {
-      const newFilas = [...this.filas]
-      const idx = newFilas.findIndex(f => f.id === fila.id)
-      if (idx > -1) {
-        newFilas[idx] = fila
-      }
-      this.filas = [...newFilas]
-    },
-    editarFila (fila) {
-      this.filaEdicao = { ...fila }
-      this.modalFila = true
-    },
-    deletarFila (fila) {
-      this.$q.dialog({
-        title: 'Atenção!!',
-        message: `Deseja realmente deletar a Fila "${fila.queue}"?`,
-        cancel: {
-          label: 'Não',
-          color: 'primary',
-          push: true
-        },
-        ok: {
-          label: 'Sim',
-          color: 'negative',
-          push: true
-        },
-        persistent: true
-      }).onOk(() => {
-        this.loading = true
-        DeletarFila(fila)
-          .then(res => {
-            let newFilas = [...this.filas]
-            newFilas = newFilas.filter(f => f.id !== fila.id)
+<script setup>
+import { ref, onMounted } from 'vue'
+import { useFilas } from '../../composables/filas/useFilas'
+import ModalFila from './ModalFila.vue'
 
-            this.filas = [...newFilas]
-            this.$q.notify({
-              type: 'positive',
-              progress: true,
-              position: 'top',
-              message: `Fila ${fila.queue} deletada!`,
-              actions: [{
-                icon: 'close',
-                round: true,
-                color: 'white'
-              }]
-            })
-          })
-        this.loading = false
-      })
-    }
+// Estado
+const userProfile = ref(localStorage.getItem('profile'))
 
-  },
-  mounted () {
-    this.userProfile = localStorage.getItem('profile')
-    this.listarFilas()
-  }
-}
+// Composables
+const {
+  filas,
+  filaEdicao,
+  modalFila,
+  loading,
+  pagination,
+  columns,
+  listarFilas,
+  filaCriada,
+  filaEditada,
+  editarFila,
+  deletarFila,
+  handleAddFila
+} = useFilas()
+
+// Lifecycle
+onMounted(() => {
+  listarFilas()
+})
 </script>
 
 <style lang="scss" scoped>
+.filas-page {
+  // Tabela
+  .my-sticky-dynamic {
+    // Cabeçalho fixo
+    .q-table__top,
+    .q-table__bottom,
+    thead tr:first-child th {
+      background-color: #fff;
+      transition: background-color 0.3s ease;
+    }
+
+    thead tr th {
+      position: sticky;
+      z-index: 1;
+    }
+
+    thead tr:last-child th {
+      top: 48px;
+    }
+
+    thead tr:first-child th {
+      top: 0;
+    }
+  }
+
+  // Botões
+  .q-btn {
+    opacity: 0.8;
+    transition: all 0.3s ease;
+
+    &:hover {
+      opacity: 1;
+      transform: scale(1.05);
+    }
+  }
+
+  // Status
+  .status-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 8px;
+    border-radius: 16px;
+    transition: all 0.3s ease;
+  }
+}
+
+// Tema escuro
+:deep(.body--dark) {
+  .filas-page {
+    .my-sticky-dynamic {
+      .q-table__top,
+      .q-table__bottom,
+      thead tr:first-child th {
+        background-color: $dark;
+      }
+    }
+  }
+}
 </style>

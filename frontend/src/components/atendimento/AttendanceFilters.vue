@@ -137,7 +137,7 @@
 
           <q-toggle
             v-model="filterParams.isNotAssignedUser"
-            label="Somente Tickets não atribuidos"
+            label="Somente Tickets não atribuídos"
             @update:model-value="handleFilterChange"
           >
             <q-tooltip>
@@ -218,7 +218,6 @@ const resetFilters = () => {
 </script>
 
 <style lang="scss" scoped>
-// Container principal dos filtros
 .attendance-filters {
   min-width: 350px;
   max-width: 350px;

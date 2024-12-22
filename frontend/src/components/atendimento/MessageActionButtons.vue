@@ -1,44 +1,30 @@
 <template>
-  <div class="row items-center q-gutter-x-xs">
+  <div class="message-actions row items-center q-gutter-x-xs">
     <!-- Anexar Arquivo -->
     <q-btn
-      flat
-      dense
+      v-bind="buttonConfig"
       icon="mdi-paperclip"
       :disable="disabled"
-      class="bg-padrao btn-rounded"
-      :color="$q.dark.isActive ? 'white' : ''"
       @click="$emit('attach-file')"
     >
-      <q-tooltip content-class="text-bold">
-        Enviar arquivo
+      <q-tooltip v-bind="tooltipConfig">
+        Anexar arquivo (Ctrl + A)
       </q-tooltip>
     </q-btn>
 
     <!-- Emoji -->
     <q-btn
-      flat
-      dense
+      v-bind="buttonConfig"
       icon="mdi-emoticon-happy-outline"
       :disable="disabled"
-      class="bg-padrao btn-rounded"
-      :color="$q.dark.isActive ? 'white' : ''"
     >
-      <q-tooltip content-class="text-bold">
-        Emoji
+      <q-tooltip v-bind="tooltipConfig">
+        Inserir emoji (Ctrl + E)
       </q-tooltip>
       
-      <q-menu
-        anchor="top right"
-        self="bottom middle"
-        :offset="[5, 40]"
-      >
+      <q-menu v-bind="emojiMenuConfig">
         <v-emoji-picker
-          style="width: 40vw"
-          :showSearch="false"
-          :emojisByRow="20"
-          labelSearch="Localizar..."
-          lang="pt-BR"
+          v-bind="emojiPickerConfig"
           @select="$emit('emoji-select', $event)"
         />
       </q-menu>
@@ -46,53 +32,115 @@
 
     <!-- Link de Vídeo -->
     <q-btn
-      flat
-      dense
+      v-bind="buttonConfig"
       icon="mdi-message-video"
       :disable="disabled"
-      class="bg-padrao btn-rounded"
-      :color="$q.dark.isActive ? 'white' : ''"
-      @click="$emit('video-link')"
+      @click="handleVideoClick"
     >
-      <q-tooltip content-class="text-bold">
-        Enviar link para videoconferência
+      <q-tooltip v-bind="tooltipConfig">
+        Enviar link para videoconferência (Ctrl + V)
       </q-tooltip>
     </q-btn>
 
     <!-- Assinatura -->
-    <q-toggle
-      keep-color
-      v-model="signModel"
-      dense
-      class="q-mx-sm q-ml-md"
-      :color="signModel ? 'positive' : 'black'"
-      type="toggle"
-    >
-      <q-tooltip>
-        {{ signModel ? 'Desativar' : 'Ativar' }} Assinatura
+    <div class="signature-container">
+      <q-toggle
+        v-model="signModel"
+        keep-color
+        dense
+        class="signature-toggle q-mx-sm q-ml-md"
+        :color="signModel ? 'positive' : 'black'"
+      />
+      <q-icon 
+        :name="signModel ? 'mdi-signature' : 'mdi-signature-text'" 
+        size="20px"
+        class="signature-icon"
+      />
+      <q-tooltip v-bind="tooltipConfig">
+        {{ signModel ? 'Desativar' : 'Ativar' }} assinatura (Ctrl + S)
       </q-tooltip>
-    </q-toggle>
+    </div>
+
+    <!-- Atalhos de Teclado -->
+    <q-btn
+      v-bind="buttonConfig"
+      icon="mdi-keyboard"
+      class="lt-md"
+    >
+      <q-tooltip v-bind="tooltipConfig">
+        Atalhos de teclado
+      </q-tooltip>
+
+      <q-menu anchor="bottom middle" self="top middle">
+        <q-list style="min-width: 200px">
+          <q-item>
+            <q-item-section>
+              <div class="row items-center justify-between">
+                <span>Anexar arquivo</span>
+                <kbd>Ctrl + A</kbd>
+              </div>
+            </q-item-section>
+          </q-item>
+          <q-item>
+            <q-item-section>
+              <div class="row items-center justify-between">
+                <span>Inserir emoji</span>
+                <kbd>Ctrl + E</kbd>
+              </div>
+            </q-item-section>
+          </q-item>
+          <q-item>
+            <q-item-section>
+              <div class="row items-center justify-between">
+                <span>Link de vídeo</span>
+                <kbd>Ctrl + V</kbd>
+              </div>
+            </q-item-section>
+          </q-item>
+          <q-item>
+            <q-item-section>
+              <div class="row items-center justify-between">
+                <span>Assinatura</span>
+                <kbd>Ctrl + S</kbd>
+              </div>
+            </q-item-section>
+          </q-item>
+        </q-list>
+      </q-menu>
+    </q-btn>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { useQuasar } from 'quasar'
-import { VEmojiPicker } from 'v-emoji-picker'
+/**
+ * Componente de botões de ação para mensagens
+ * @component
+ * @description Fornece botões para ações comuns em mensagens com atalhos de teclado
+ */
 
-// Props
+import { computed, onMounted, onUnmounted } from 'vue'
+import { VEmojiPicker } from 'v-emoji-picker'
+import { useMessageActions } from '../../composables/chat/useMessageActions'
+
+/**
+ * Props do componente
+ */
 const props = defineProps({
+  /** Estado desabilitado */
   disabled: {
     type: Boolean,
     default: false
   },
+  /** Estado da assinatura */
   sign: {
     type: Boolean,
     default: false
   }
 })
 
-// Emits
+/**
+ * Eventos que o componente pode emitir
+ */
 const emit = defineEmits([
   'attach-file',
   'emoji-select',
@@ -100,81 +148,212 @@ const emit = defineEmits([
   'toggle-sign'
 ])
 
-// Composables
-const $q = useQuasar()
+/**
+ * Composable de ações
+ */
+const {
+  emojiPickerConfig,
+  buttonConfig,
+  tooltipConfig,
+  emojiMenuConfig,
+  handleVideoClick: onVideoClick
+} = useMessageActions()
 
-// Computed
+/**
+ * Model da assinatura
+ */
 const signModel = computed({
   get: () => props.sign,
   set: (value) => emit('toggle-sign', value)
 })
+
+/**
+ * Manipula clique no botão de vídeo
+ */
+const handleVideoClick = async () => {
+  if (props.disabled) return
+  const link = await onVideoClick()
+  emit('video-link', link)
+}
+
+/**
+ * Manipula atalhos de teclado
+ */
+const handleKeydown = (event) => {
+  if (props.disabled) return
+  if (!event.ctrlKey) return
+
+  switch (event.key.toLowerCase()) {
+    case 'a':
+      event.preventDefault()
+      emit('attach-file')
+      break
+    case 'e':
+      event.preventDefault()
+      // Abrir emoji picker
+      break
+    case 'v':
+      event.preventDefault()
+      handleVideoClick()
+      break
+    case 's':
+      event.preventDefault()
+      emit('toggle-sign', !props.sign)
+      break
+  }
+}
+
+// Lifecycle
+onMounted(() => {
+  document.addEventListener('keydown', handleKeydown)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown)
+})
 </script>
 
 <style lang="scss" scoped>
-.bg-padrao {
-  &.q-btn {
-    transition: all 0.3s ease;
+.message-actions {
+  // Botões
+  .bg-padrao {
+    &.q-btn {
+      transition: all 0.3s ease;
+      
+      &:not(:disabled) {
+        &:hover {
+          background: rgba(var(--q-primary-rgb), 0.1);
+          transform: translateY(-1px);
+        }
+        
+        &:active {
+          transform: translateY(0);
+        }
+      }
+      
+      &:disabled {
+        opacity: 0.6;
+      }
+    }
+  }
+
+  // Botões arredondados
+  .btn-rounded {
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
     
-    &:not(:disabled) {
+    :deep(.q-icon) {
+      font-size: 20px;
+    }
+  }
+
+  // Container de assinatura
+  .signature-container {
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+
+    .signature-toggle {
+      :deep(.q-toggle__inner) {
+        &:before {
+          border-radius: 12px;
+          transition: all 0.3s ease;
+        }
+        
+        .q-toggle__thumb {
+          border-radius: 50%;
+          transition: all 0.3s ease;
+        }
+      }
+      
+      &--checked {
+        :deep(.q-toggle__inner) {
+          background: var(--q-positive);
+          
+          .q-toggle__thumb {
+            background: white;
+          }
+        }
+      }
+
       &:hover {
-        background: rgba(var(--q-primary-rgb), 0.1);
-      }
-      
-      &:active {
-        transform: scale(0.95);
+        :deep(.q-toggle__inner) {
+          opacity: 0.9;
+        }
       }
     }
-    
-    &:disabled {
-      opacity: 0.6;
+
+    .signature-icon {
+      margin-left: 4px;
+      transition: all 0.3s ease;
+      opacity: 0.7;
+
+      &:hover {
+        opacity: 1;
+      }
+    }
+  }
+
+  // Atalhos de teclado
+  kbd {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-family: monospace;
+    font-size: 0.9em;
+    margin-left: 8px;
+  }
+}
+
+// Tema escuro
+:deep(.body--dark) {
+  .message-actions {
+    .bg-padrao.q-btn:not(:disabled):hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    kbd {
+      background: rgba(255, 255, 255, 0.1);
     }
   }
 }
 
-.btn-rounded {
-  border-radius: 50%;
-  width: 36px;
-  height: 36px;
-  
-  :deep(.q-icon) {
-    font-size: 20px;
-  }
-}
-
-.q-toggle {
-  :deep(.q-toggle__inner) {
-    &:before {
-      border-radius: 12px;
-    }
-    
-    .q-toggle__thumb {
-      border-radius: 50%;
-    }
-  }
-  
-  &--checked {
-    :deep(.q-toggle__inner) {
-      background: var(--q-positive);
-      
-      .q-toggle__thumb {
-        background: white;
-      }
-    }
-  }
-}
-
+// Emoji picker
 :deep(.v-emoji-picker) {
-  --vep-color-border: var(--q-separator-color);
-  --vep-color-background: var(--q-card-color);
-  --vep-color-text: var(--q-primary-text-color);
-  
   border-radius: 8px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+
+  .body--dark & {
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+  }
 }
 
-.q-tooltip {
-  font-size: 14px;
-  padding: 8px 12px;
-  background: var(--q-primary);
+// Animações
+.jump-down-enter-active,
+.jump-down-leave-active,
+.jump-up-enter-active,
+.jump-up-leave-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.jump-down-enter-from,
+.jump-up-leave-to {
+  opacity: 0;
+  transform: translateY(-20px);
+}
+
+.jump-down-leave-to,
+.jump-up-enter-from {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+// Responsividade
+@media (min-width: 600px) {
+  .lt-md {
+    display: none;
+  }
 }
 </style>

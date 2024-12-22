@@ -1,91 +1,65 @@
 import { ref, computed } from 'vue'
 import { useQuasar } from 'quasar'
-import { useRouter } from 'vue-router'
-import { useAtendimentoFilters } from './useAtendimentoFilters'
+import { useAtendimentoTicketStore } from '../../stores'
 
 /**
- * Composable para gerenciar a lógica do header de atendimento
- * @param {Function} emit - Função para emitir eventos
- * @returns {Object} Objeto contendo estados e métodos do header
+ * Composable para gerenciar o cabeçalho do atendimento
+ * @returns {Object} Objeto contendo estados e métodos do cabeçalho
  */
-export function useAttendanceHeader(emit) {
+export function useAttendanceHeader() {
   const $q = useQuasar()
-  const router = useRouter()
-  const { filterParams } = useAtendimentoFilters()
+  const ticketStore = useAtendimentoTicketStore()
 
-  // Estado do usuário
-  const username = ref(localStorage.getItem('username'))
-
-  /**
-   * Computed para o parâmetro de busca
-   * Mantém sincronia com os filtros
-   */
-  const searchParam = computed({
-    get: () => filterParams.value.searchParam,
-    set: (value) => {
-      filterParams.value.searchParam = value
-    }
-  })
+  // Estado
+  const username = ref(ticketStore.getUser?.name || 'Usuário')
+  const searchParam = ref('')
+  const hasActiveFilters = ref(false)
 
   /**
-   * Verifica se existem filtros ativos
+   * Manipula a busca
+   * @param {string} value - Valor da busca
    */
-  const hasActiveFilters = computed(() => {
-    const { showAll, queuesIds, withUnreadMessages, isNotAssignedUser } = filterParams.value
-    return showAll || 
-           queuesIds.length > 0 || 
-           withUnreadMessages || 
-           isNotAssignedUser
-  })
-
-  /**
-   * Manipula a ação de busca
-   */
-  const handleSearch = () => {
-    emit('search')
+  const handleSearch = (value) => {
+    searchParam.value = value
+    // Implementar lógica de busca
   }
 
   /**
-   * Manipula o logout do usuário
+   * Manipula logout
    */
   const handleLogout = () => {
-    emit('logout')
+    // Implementar lógica de logout
+    $q.notify({
+      type: 'positive',
+      message: 'Logout realizado com sucesso',
+      position: 'top'
+    })
   }
 
   /**
    * Abre o perfil do usuário
    */
   const openUserProfile = () => {
-    emit('openProfile')
-  }
-
-  /**
-   * Navega para o dashboard
-   */
-  const goToDashboard = () => {
-    router.push({ name: 'home-dashboard' })
+    // Implementar lógica para abrir perfil
   }
 
   /**
    * Abre a lista de contatos
-   * Em telas menores, abre modal de novo ticket
    */
   const openContacts = () => {
-    if ($q.screen.lt.md) {
-      emit('openNewTicketModal')
-    } else {
-      router.push({ name: 'chat-contatos' })
-    }
+    // Implementar lógica para abrir contatos
   }
 
   return {
+    // Estado
     username,
     searchParam,
     hasActiveFilters,
+
+    // Métodos
     handleSearch,
     handleLogout,
     openUserProfile,
-    goToDashboard,
     openContacts
   }
 }

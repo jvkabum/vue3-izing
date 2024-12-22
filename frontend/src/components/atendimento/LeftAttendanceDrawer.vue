@@ -1,120 +1,141 @@
 <template>
-  <q-drawer
-    v-model="drawerTickets"
-    show-if-above
-    bordered
-    :overlay="$q.screen.lt.md"
-    persistent
-    :breakpoint="769"
-    :width="drawerWidth"
-    content-class="hide-scrollbar full-width"
-  >
-    <!-- Header -->
-    <AtendimentoHeader
-      :show-whatsapp-status="false"
-      :toolbar-search="toolbarSearch"
-      @search="handleSearch"
-      @logout="handleLogout"
-      @open-profile="handleOpenProfile"
-      @open-new-ticket-modal="handleOpenNewTicketModal"
+  <div class="attendance-drawer">
+    <!-- Drawer Principal -->
+    <q-drawer
+      v-model="drawerTickets"
+      show-if-above
+      bordered
+      :overlay="$q.screen.lt.md"
+      persistent
+      :breakpoint="769"
+      :width="drawerWidth"
+      content-class="attendance-drawer__content"
+    >
+      <!-- Header com Busca e Filtros -->
+      <AtendimentoHeader
+        :show-whatsapp-status="false"
+        :toolbar-search="toolbarSearch"
+        @search="$emit('search')"
+        @logout="handleLogout"
+        @open-profile="openUserProfile"
+        @open-new-ticket-modal="openNewTicketModal"
+      />
+
+      <!-- Lista de Tickets com Tabs -->
+      <q-scroll-area
+        ref="scrollAreaTickets"
+        class="attendance-drawer__tickets"
+        @scroll="handleScroll"
+      >
+        <AtendimentoTabs
+          :filas="filas"
+          @ticket-click="openChat"
+        />
+      </q-scroll-area>
+
+      <!-- Footer com Controles -->
+      <footer class="attendance-drawer__footer">
+        <!-- Toggle Modo Escuro -->
+        <div class="dark-mode">
+          <q-toggle
+            v-model="isDarkMode"
+            size="xl"
+            keep-color
+            dense
+            class="dark-mode__toggle"
+            :icon-color="$q.dark.isActive ? 'black' : 'white'"
+            :color="$q.dark.isActive ? 'grey-3' : 'black'"
+            checked-icon="mdi-white-balance-sunny"
+            unchecked-icon="mdi-weather-sunny"
+            @update:model-value="toggleDarkMode"
+          >
+            <q-tooltip>
+              {{ $q.dark.isActive ? 'Desativar' : 'Ativar' }} Modo Escuro
+            </q-tooltip>
+          </q-toggle>
+        </div>
+
+        <!-- Lista de Canais -->
+        <div class="channels">
+          <q-scroll-area horizontal class="channels__list">
+            <div class="row no-wrap q-gutter-x-sm">
+              <template v-for="channel in whatsapps" :key="channel.id">
+                <q-btn
+                  rounded
+                  flat
+                  dense
+                  :class="[
+                    'channels__btn',
+                    { 'channels__btn--disconnected': channel.status !== 'CONNECTED' }
+                  ]"
+                  :icon="`img:${channel.type}-logo.png`"
+                >
+                  <q-tooltip anchor="center right" self="center left" max-width="300px">
+                    <ItemStatusChannel :item="channel" />
+                  </q-tooltip>
+                </q-btn>
+              </template>
+            </div>
+          </q-scroll-area>
+        </div>
+      </footer>
+    </q-drawer>
+
+    <!-- Modais -->
+    <ModalNovoTicket
+      v-if="showNewTicketModal"
+      v-model="showNewTicketModal"
+      @close="showNewTicketModal = false"
     />
 
-    <!-- Tabs e Lista de Tickets -->
-    <q-scroll-area
-      ref="scrollAreaTickets"
-      style="height: calc(100% - 180px)"
-      @scroll="handleScroll"
-    >
-      <AtendimentoTabs
-        :filas="filas"
-        @ticket-click="handleTicketClick"
-      />
-    </q-scroll-area>
-
-    <!-- Footer -->
-    <div class="absolute-bottom row justify-between" style="height: 50px">
-      <!-- Dark Mode Toggle -->
-      <q-toggle
-        size="xl"
-        keep-color
-        dense
-        class="text-bold q-ml-md flex flex-block"
-        :icon-color="$q.dark.isActive ? 'black' : 'white'"
-        :value="$q.dark.isActive"
-        :color="$q.dark.isActive ? 'grey-3' : 'black'"
-        checked-icon="mdi-white-balance-sunny"
-        unchecked-icon="mdi-weather-sunny"
-        @input="handleDarkModeToggle"
-      >
-        <q-tooltip content-class="text-body1">
-          {{ $q.dark.isActive ? 'Desativar' : 'Ativar' }} Modo Escuro (Dark Mode)
-        </q-tooltip>
-      </q-toggle>
-
-      <!-- Canais de Comunicação -->
-      <div class="flex flex-inline q-pt-xs">
-        <q-scroll-area horizontal style="height: 40px; width: 300px;">
-          <template v-for="channel in whatsapps" :key="channel.id">
-            <q-btn
-              rounded
-              flat
-              dense
-              size="18px"
-              class="q-mx-xs q-pa-none"
-              :style="`opacity: ${channel.status === 'CONNECTED' ? 1 : 0.2}`"
-              :icon="`img:${channel.type}-logo.png`"
-            >
-              <q-tooltip
-                max-height="300px"
-                content-class="bg-blue-1 text-body1 text-grey-9 hide-scrollbar"
-              >
-                <ItemStatusChannel :item="channel" />
-              </q-tooltip>
-            </q-btn>
-          </template>
-        </q-scroll-area>
-      </div>
-    </div>
-  </q-drawer>
-
-  <!-- Modais -->
-  <ModalNovoTicket
-    v-model="showNewTicketModal"
-    @close="showNewTicketModal = false"
-  />
-
-  <ModalUsuario
-    :is-profile="true"
-    v-model="showUserModal"
-    :usuario-edicao.sync="usuario"
-  />
+    <ModalUsuario
+      v-if="showUserModal"
+      :is-profile="true"
+      v-model="showUserModal"
+      :usuario-edicao="usuario"
+      @update:usuario-edicao="updateUsuario"
+    />
+  </div>
 </template>
 
 <script setup>
+/**
+ * Componente de drawer lateral do atendimento
+ * @component
+ * @description Exibe lista de tickets e controles principais do atendimento
+ */
+
 import { ref, computed } from 'vue'
 import { useQuasar } from 'quasar'
-import { useAtendimentoDrawers } from '../../composables/useAtendimentoDrawers'
-import { useAtendimentoState } from '../../composables/useAtendimentoState'
+import { useAttendanceDrawer } from '../../composables/atendimento/useAttendanceDrawer'
+
+// Componentes
 import AtendimentoHeader from './AtendimentoHeader.vue'
 import AtendimentoTabs from './AtendimentoTabs.vue'
-import ItemStatusChannel from '../ItemStatusChannel.vue'
-import ModalNovoTicket from './ModalNovoTicket.vue'
-import ModalUsuario from '../ModalUsuario.vue'
+import ItemStatusChannel from '../sessao-whatsapp/ItemStatusChannel.vue'
+import ModalNovoTicket from './modals/ModalNovoTicket.vue'
+import ModalUsuario from '../usuarios/ModalUsuario.vue'
 
-// Props
+/**
+ * Props do componente
+ */
 const props = defineProps({
+  /** Lista de filas disponíveis */
   filas: {
     type: Array,
     default: () => []
   },
+  /** Lista de canais WhatsApp */
   whatsapps: {
     type: Array,
     default: () => []
   }
 })
 
-// Emits
-const emit = defineEmits(['search', 'scroll', 'logout'])
+/**
+ * Eventos que o componente pode emitir
+ */
+const emit = defineEmits(['search', 'scroll', 'logout', 'update-config'])
 
 // Composables
 const $q = useQuasar()
@@ -122,61 +143,164 @@ const {
   drawerTickets,
   drawerWidth,
   toolbarSearch,
-  openChat
-} = useAtendimentoDrawers()
+  showNewTicketModal,
+  showUserModal,
+  scrollAreaTickets,
+  openChat,
+  toggleDarkMode,
+  openNewTicketModal,
+  openUserProfile,
+  handleLogout,
+  handleScroll
+} = useAttendanceDrawer()
 
-const {
-  usuario,
-  loading
-} = useAtendimentoState()
+/**
+ * Estado do modo escuro
+ */
+const isDarkMode = computed({
+  get: () => $q.dark.isActive,
+  set: (value) => {
+    toggleDarkMode(value)
+    emit('update-config', { isDark: value })
+  }
+})
 
-// Estado
-const showNewTicketModal = ref(false)
-const showUserModal = ref(false)
-const scrollAreaTickets = ref(null)
+/**
+ * Dados do usuário
+ */
+const usuario = ref(JSON.parse(localStorage.getItem('usuario') || '{}'))
 
-// Métodos
-const handleSearch = () => {
-  emit('search')
-}
-
-const handleScroll = (info) => {
-  emit('scroll', info)
-}
-
-const handleLogout = () => {
-  emit('logout')
-}
-
-const handleOpenProfile = () => {
-  showUserModal.value = true
-}
-
-const handleOpenNewTicketModal = () => {
-  showNewTicketModal.value = true
-}
-
-const handleTicketClick = (ticket) => {
-  openChat(ticket)
-}
-
-const handleDarkModeToggle = (value) => {
-  $q.dark.set(value)
-  // Emitir evento para atualizar configurações do usuário
-  emit('update-config', { isDark: value })
+/**
+ * Atualiza dados do usuário
+ */
+const updateUsuario = (newData) => {
+  usuario.value = newData
+  localStorage.setItem('usuario', JSON.stringify(newData))
 }
 </script>
 
 <style lang="scss" scoped>
-.hide-scrollbar {
-  &::-webkit-scrollbar {
-    display: none;
+.attendance-drawer {
+  // Container principal
+  &__content {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background: white;
+    transition: all 0.3s ease;
   }
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+
+  // Lista de tickets
+  &__tickets {
+    flex: 1;
+    height: calc(100vh - 180px);
+  }
+
+  // Footer
+  &__footer {
+    height: 50px;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1px solid rgba(0, 0, 0, 0.12);
+    background: rgba(0, 0, 0, 0.02);
+    transition: all 0.3s ease;
+
+    // Modo escuro
+    .dark-mode {
+      &__toggle {
+        transition: all 0.3s ease;
+
+        &:hover {
+          opacity: 0.8;
+          transform: scale(1.05);
+        }
+      }
+    }
+
+    // Canais
+    .channels {
+      &__list {
+        width: 300px;
+        height: 40px;
+      }
+
+      &__btn {
+        width: 40px;
+        height: 40px;
+        transition: all 0.3s ease;
+
+        &:hover {
+          transform: translateY(-2px);
+        }
+
+        &--disconnected {
+          opacity: 0.2;
+          filter: grayscale(1);
+
+          &:hover {
+            opacity: 0.4;
+          }
+        }
+
+        img {
+          width: 24px;
+          height: 24px;
+          transition: all 0.3s ease;
+        }
+      }
+    }
+  }
 }
 
-.btn-rounded {
-  border-radius: 50%;
+// Tema escuro
+:deep(.body--dark) {
+  .attendance-drawer {
+    &__content {
+      background: $dark;
+    }
+
+    &__footer {
+      border-color: rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.03);
+    }
+  }
+}
+
+// Responsividade
+@media (max-width: 599px) {
+  .attendance-drawer {
+    &__footer {
+      padding: 0 8px;
+
+      .channels {
+        &__list {
+          width: 200px;
+        }
+
+        &__btn {
+          width: 32px;
+          height: 32px;
+
+          img {
+            width: 20px;
+            height: 20px;
+          }
+        }
+      }
+    }
+  }
+}
+
+// Animações
+.q-drawer-enter-active,
+.q-drawer-leave-active {
+  transition: transform 0.3s ease;
+}
+
+.q-drawer-enter-from,
+.q-drawer-leave-to {
+  transform: translateX(-100%);
 }
 </style>
