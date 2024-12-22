@@ -5,10 +5,7 @@
         404
       </div>
 
-      <div
-        class="text-h2 text-white"
-        style="opacity:.4"
-      >
+      <div class="text-h2 text-white" style="opacity:.4">
         Oooooops... Nada por aqui...
       </div>
 
@@ -19,14 +16,24 @@
         unelevated
         label="Voltar"
         no-caps
-        @click="$router.go(-1)"
+        @click="goBack"
       />
     </div>
   </div>
 </template>
 
-<script>
-export default {
-  name: 'Error404'
+<script setup>
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+
+const goBack = () => {
+  router.go(-1)
 }
 </script>
+
+<style scoped>
+.fullscreen {
+  height: 100vh;
+}
+</style>
