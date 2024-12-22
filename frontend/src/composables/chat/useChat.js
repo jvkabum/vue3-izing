@@ -1,102 +1,117 @@
-import { ref } from 'vue'
-import request from 'src/service/request'
+import { ref, computed } from 'vue'
 import { useQuasar } from 'quasar'
+import { useAtendimentoTicketStore } from '../../stores'
+import { EnviarMensagem } from '../../service/tickets'
 
-export function useChat() {
+/**
+ * Composable para gerenciar o chat
+ * @param {string} ticketId - ID do ticket atual
+ * @returns {Object} Objeto contendo estados e métodos do chat
+ */
+export function useChat(ticketId) {
   const $q = useQuasar()
-  const messages = ref([])
+  const ticketStore = useAtendimentoTicketStore()
+
+  // Estado
   const loading = ref(false)
-  const error = ref(null)
+  const hasMore = ref(true)
+  const pageNumber = ref(1)
 
-  const sendMessage = async (message) => {
-    loading.value = true
+  /**
+   * Mensagens do chat
+   */
+  const messages = computed(() => 
+    ticketStore.getMensagens
+  )
+
+  /**
+   * Carrega mais mensagens (paginação infinita)
+   */
+  const loadMoreMessages = async ($state) => {
+    if (!hasMore.value || loading.value) {
+      $state?.complete()
+      return
+    }
+
     try {
-      let endpoint = '/messages'
-      let method = 'post'
-      let data = message
-
-      // Se for um FormData (envio de arquivo), ajusta o endpoint
-      if (message instanceof FormData) {
-        endpoint = '/messages/media'
-      }
-
-      const response = await request({
-        url: endpoint,
-        method,
-        data,
-        headers: message instanceof FormData ? {
-          'Content-Type': 'multipart/form-data'
-        } : undefined
+      loading.value = true
+      
+      await ticketStore.localizarMensagensTicket({
+        ticketId,
+        pageNumber: pageNumber.value
       })
 
-      messages.value.push(response.data)
-      return response.data
-    } catch (err) {
-      error.value = err?.data?.error || err.message
+      hasMore.value = ticketStore.getHasMore
+      pageNumber.value++
+      
+      $state?.loaded()
+    } catch (error) {
+      console.error('Erro ao carregar mensagens:', error)
+      $q.notify({
+        type: 'negative',
+        message: 'Erro ao carregar mensagens',
+        position: 'top'
+      })
+      $state?.error()
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * Envia uma nova mensagem
+   * @param {Object} message - Dados da mensagem
+   * @param {string} message.body - Conteúdo da mensagem
+   * @param {string} [message.replyTo] - ID da mensagem sendo respondida
+   * @param {File} [message.media] - Arquivo de mídia
+   */
+  const sendMessage = async (message) => {
+    try {
+      loading.value = true
+
+      const data = {
+        ticketId,
+        body: message.body,
+        quotedMsg: message.replyTo,
+        media: message.media
+      }
+
+      await EnviarMensagem(data)
+
+      // Atualiza lista de mensagens
+      await loadMoreMessages()
+
+    } catch (error) {
+      console.error('Erro ao enviar mensagem:', error)
       $q.notify({
         type: 'negative',
         message: 'Erro ao enviar mensagem',
         position: 'top'
       })
-      throw err
+      throw error
     } finally {
       loading.value = false
     }
   }
 
-  const loadMessages = async (ticketId, page = 1) => {
-    loading.value = true
-    try {
-      const { data } = await request({
-        url: `/messages/${ticketId}`,
-        method: 'get',
-        params: { page }
-      })
-      messages.value = data
-      return data
-    } catch (err) {
-      error.value = err?.data?.error || err.message
-      throw err
-    } finally {
-      loading.value = false
-    }
-  }
-
-  const deleteMessage = async (messageId) => {
-    loading.value = true
-    try {
-      await request({
-        url: `/messages/${messageId}`,
-        method: 'delete'
-      })
-      messages.value = messages.value.filter(m => m.id !== messageId)
-    } catch (err) {
-      error.value = err?.data?.error || err.message
-      throw err
-    } finally {
-      loading.value = false
-    }
-  }
-
-  const scrollToBottom = () => {
-    setTimeout(() => {
-      const chatContainer = document.querySelector('.chat-messages')
-      if (chatContainer) {
-        chatContainer.scrollTop = chatContainer.scrollHeight
-      }
-    }, 100)
+  /**
+   * Reseta o estado do chat
+   */
+  const resetChat = () => {
+    hasMore.value = true
+    pageNumber.value = 1
+    ticketStore.resetMessage()
   }
 
   return {
     // Estado
-    messages,
     loading,
-    error,
-
+    hasMore,
+    messages,
+    
     // Métodos
+    loadMoreMessages,
     sendMessage,
-    loadMessages,
-    deleteMessage,
-    scrollToBottom
+    resetChat
   }
 }
