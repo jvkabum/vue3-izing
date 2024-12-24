@@ -1,55 +1,70 @@
-import { createRouter, createWebHashHistory } from 'vue-router'
-import { useRouterAuth } from '../composables/router/useRouterAuth'
+import Vue from 'vue'
+import VueRouter from 'vue-router'
+import { Notify } from 'quasar'
+
 import routes from './routes'
 
-/**
- * Configuração do Router
+// Ajuste para desativar error por navegação duplicada
+// https://github.com/vuejs/vue-router/issues/2881#issuecomment-520554378
+// const originalPush = VueRouter.prototype.push
+// VueRouter.prototype.push = function push (location, onResolve, onReject) {
+//   if (onResolve || onReject) { return originalPush.call(this, location, onResolve, onReject) }
+//   return originalPush.call(this, location).catch((err) => {
+//     if (VueRouter.isNavigationFailure(err)) {
+//       // resolve err
+//       return err
+//     }
+//     // rethrow error
+//     return Promise.reject(err)
+//   })
+// }
+
+Vue.use(VueRouter)
+
+/*
+ * If not building with SSR mode, you can
+ * directly export the Router instantiation;
+ *
+ * The function below can be async too; either use
+ * async/await or return a Promise which resolves
+ * with the Router instance.
  */
-const router = createRouter({
-  // Histórico
-  history: createWebHashHistory(process.env.VUE_ROUTER_BASE),
-  
-  // Comportamento de scroll
-  scrollBehavior: () => ({ 
-    left: 0, 
-    top: 0,
-    behavior: 'smooth'
-  }),
 
-  // Rotas
+const Router = new VueRouter({
+  scrollBehavior: () => ({ x: 0, y: 0 }),
   routes,
-
-  // Configurações adicionais
-  strict: process.env.NODE_ENV !== 'production',
-  sensitive: true,
-  
-  // Fallback para hash mode
-  fallback: true
+  // Leave these as they are and change in quasar.conf.js instead!
+  // quasar.conf.js -> build -> vueRouterMode
+  // quasar.conf.js -> build -> publicPath
+  mode: process.env.VUE_ROUTER_MODE,
+  base: process.env.VUE_ROUTER_BASE
 })
 
-// Composables
-const { navigationGuard, afterNavigation } = useRouterAuth()
+const whiteListName = [
+  'login'
+]
 
-// Guards
-router.beforeEach(navigationGuard)
-router.afterEach(afterNavigation)
+Router.beforeEach((to, from, next) => {
+  const token = JSON.parse(localStorage.getItem('token'))
 
-// Tratamento de erros
-router.onError((error) => {
-  console.error('Erro de navegação:', error)
-  
-  // Redireciona para página de erro em caso de falha no carregamento
-  if (error.type === 2 /* Navigation failure */) {
-    router.push('/error')
+  if (!token) {
+    if (whiteListName.indexOf(to.name) == -1) {
+      if (to.fullPath !== '/login' && !to.query.tokenSetup) {
+        Notify.create({ message: 'Necessário realizar login', position: 'top' })
+        next({ name: 'login' })
+      } else {
+        next()
+      }
+    } else {
+      next()
+    }
+  } else {
+    next()
   }
 })
 
-// Configurações de desenvolvimento
-if (process.env.NODE_ENV === 'development') {
-  // Log de navegação
-  router.beforeEach((to, from) => {
-    console.log(`Navegando de ${from.fullPath} para ${to.fullPath}`)
-  })
-}
+Router.afterEach(to => {
+  window.scrollTo(0, 0)
+})
 
-export default router
+export default Router

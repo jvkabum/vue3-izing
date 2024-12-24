@@ -10,7 +10,7 @@
       class="q-pa-lg"
     >
       <q-card-section>
-        <div class="text-h6">{{ apiEdicao.id ? 'Editar' : 'Criar' }} Configuração API</div>
+        <div class="text-h6">{{  apiEdicao.id ? 'Editar' : 'Criar'  }} Configuração API</div>
       </q-card-section>
       <q-card-section>
         <fieldset class="q-pa-md full-width rounded-all">
@@ -47,6 +47,7 @@
                 error-message="Obrigatório"
               />
             </div>
+
           </div>
         </fieldset>
         <fieldset class="q-pa-md full-width q-mt-lg rounded-all">
@@ -95,83 +96,122 @@
           label="Ativo"
         />
       </q-card-section>
-      <q-card-actions align="right" class="q-mt-md">
-        <q-btn rounded label="Cancelar" color="negative" v-close-popup class="q-mr-md" />
-        <q-btn rounded label="Salvar" color="positive" @click="handleAPI" />
+      <q-card-actions
+        align="right"
+        class="q-mt-md"
+      >
+        <q-btn
+          rounded
+          label="Cancelar"
+          color="negative"
+          v-close-popup
+          class="q-mr-md"
+        />
+        <q-btn
+          rounded
+          label="Salvar"
+          color="positive"
+          @click="handleAPI"
+        />
       </q-card-actions>
     </q-card>
   </q-dialog>
+
 </template>
 
-<script setup>
-import { ref } from 'vue'
+<script>
+import { mapGetters } from 'vuex'
 import { required, url } from 'vuelidate/lib/validators'
-import { CriarAPI, EditarAPI } from 'src/service/api'
-
-const props = defineProps({
-  modalApi: {
-    type: Boolean,
-    default: false
-  },
-  apiEdicao: {
-    type: Object,
-    default: () => ({ id: null })
-  }
-})
-
-const emit = defineEmits(['update'])
-
-const api = ref({
-  id: null,
-  name: null,
-  sessionId: null,
-  urlServiceStatus: null,
-  urlMessageStatus: null,
-  authToken: null,
-  isActive: true
-})
-
 const isValidURL = (v) => url(v) || !v
-
-const validations = {
-  api: {
-    name: { required },
-    sessionId: { required },
-    authToken: {},
-    urlServiceStatus: { isValidURL },
-    urlMessageStatus: { isValidURL }
+import { CriarAPI, EditarAPI } from 'src/service/api'
+export default {
+  name: 'ModalFila',
+  props: {
+    modalApi: {
+      type: Boolean,
+      default: false
+    },
+    apiEdicao: {
+      type: Object,
+      default: () => {
+        return { id: null }
+      }
+    }
+  },
+  data () {
+    return {
+      api: {
+        id: null,
+        name: null,
+        sessionId: null,
+        urlServiceStatus: null,
+        urlMessageStatus: null,
+        authToken: null,
+        isActive: true
+      }
+    }
+  },
+  validations: {
+    api: {
+      name: { required },
+      sessionId: { required },
+      authToken: {},
+      urlServiceStatus: { isValidURL },
+      urlMessageStatus: { isValidURL }
+    }
+  },
+  computed: {
+    ...mapGetters(['whatsapps']),
+    cSessions () {
+      return this.whatsapps.filter(w => w.type === 'whatsapp' && !w.isDeleted)
+    }
+  },
+  methods: {
+    resetarApi () {
+      this.api = {
+        id: null,
+        queue: null,
+        isActive: true
+      }
+    },
+    fecharModal () {
+      this.resetarApi()
+      this.$emit('update:apiEdicao', { id: null })
+      this.$emit('update:modalApi', false)
+    },
+    abrirModal () {
+      if (this.apiEdicao.id) {
+        this.api = { ...this.apiEdicao }
+      } else {
+        this.resetarApi()
+      }
+    },
+    async handleAPI () {
+      this.$v.api.$touch()
+      if (this.$v.api.$error) {
+        this.$notificarErro('Verifique os campos obrigatórios e inconsistências.')
+        return
+      }
+      try {
+        this.loading = true
+        if (this.api.id) {
+          const { data } = await EditarAPI(this.api)
+          this.$emit('modal-api:editada', data)
+          this.$notificarSucesso('API Editada')
+        } else {
+          const { data } = await CriarAPI(this.api)
+          this.$emit('modal-api:criada', data)
+          this.$notificarSucesso('API criada')
+        }
+        this.loading = false
+        this.fecharModal()
+      } catch (error) {
+        console.error(error)
+        this.$notificarErro('Ocorreu um erro!', error)
+      }
+    }
   }
-}
 
-const resetarApi = () => {
-  api.value = {
-    id: null,
-    name: null,
-    sessionId: null,
-    urlServiceStatus: null,
-    urlMessageStatus: null,
-    authToken: null,
-    isActive: true
-  }
-}
-
-const fecharModal = () => {
-  resetarApi()
-  emit('update:apiEdicao', { id: null })
-  emit('update:modalApi', false)
-}
-
-const abrirModal = () => {
-  if (props.apiEdicao.id) {
-    api.value = { ...props.apiEdicao }
-  } else {
-    resetarApi()
-  }
-}
-
-const handleAPI = async () => {
-  // Validar e salvar a API
-  // Implementar lógica de validação e salvamento
 }
 </script>
 

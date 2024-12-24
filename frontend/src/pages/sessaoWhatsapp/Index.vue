@@ -1,76 +1,68 @@
 <template>
-  <div v-if="userProfile === 'admin'" class="sessao-whatsapp">
-    <!-- Cabeçalho -->
+  <div v-if="userProfile === 'admin'">
     <div class="row col full-width q-pa-sm">
-      <q-card flat class="full-width">
-        <q-card-section class="text-h6 text-bold row items-center justify-between">
-          <div>Canais</div>
-          <q-btn
-            rounded
-            color="black"
-            icon="add"
-            label="Adicionar"
-            @click="modalWhatsapp = true"
-          >
-            <q-tooltip>Adicionar novo canal</q-tooltip>
-          </q-btn>
+      <q-card
+        flat
+        class="full-width"
+      >
+        <q-card-section class="text-h6 text-bold">
+          Canais
+          <div class="absolute-right q-pa-md">
+            <q-btn
+              rounded
+              color="black"
+              icon="mdi-plus"
+              label="Adicionar"
+              @click="modalWhatsapp = true"
+            />
+          </div>
         </q-card-section>
       </q-card>
     </div>
-
-    <!-- Grid de Canais -->
-    <div class="row full-width justify-start items-stretch">
-      <template v-for="item in canais" :key="item.id">
-        <q-card flat bordered class="canal-card col-xs-12 col-sm-5 col-md-4 col-lg-3 q-ma-sm">
-          <!-- Cabeçalho do Canal -->
+    <div class="row full-width">
+      <template v-for="item in canais">
+        <q-card
+          flat
+          bordered
+          class="col-xs-12 col-sm-5 col-md-4 col-lg-3 q-ma-sm"
+          :key="item.id"
+        >
           <q-item>
             <q-item-section avatar>
               <q-avatar>
-                <q-img :src="`${item.type}-logo.png`" :alt="item.type">
-                  <template #error>
-                    <q-icon name="mdi-help-circle" size="40px" color="grey" />
-                  </template>
-                </q-img>
+                <q-icon
+                  size="40px"
+                  :name="`img:${item.type}-logo.png`"
+                />
               </q-avatar>
             </q-item-section>
-
             <q-item-section>
-              <q-item-label class="text-h6 text-bold">
-                {{ item.name }}
-              </q-item-label>
-              <q-item-label caption>
+              <q-item-label class="text-h6 text-bold">Nome: {{ item.name }}</q-item-label>
+              <q-item-label class="text-h6 text-caption">
                 {{ item.type }}
               </q-item-label>
             </q-item-section>
-
-            <q-item-section side v-if="isAdmin">
+            <q-item-section side>
               <q-btn
                 round
                 flat
                 dense
-                icon="edit"
+                icon="mdi-pen"
                 @click="handleOpenModalWhatsapp(item)"
-              >
-                <q-tooltip>Editar canal</q-tooltip>
-              </q-btn>
+                v-if="isAdmin"
+              />
             </q-item-section>
           </q-item>
-
           <q-separator />
-
-          <!-- Status do Canal -->
           <q-card-section>
             <ItemStatusChannel :item="item" />
-            
             <template v-if="item.type === 'messenger'">
               <div class="text-body2 text-bold q-mt-sm">
-                <span>Página:</span>
-                {{ item.fbObject?.name || 'Nenhuma página configurada.' }}
+                <span> Página: </span>
+                {{ item.fbObject && item.fbObject.name || 'Nenhuma página configurada.' }}
               </div>
             </template>
           </q-card-section>
-
-          <!-- Seleção de Bot -->
           <q-card-section>
             <q-select
               outlined
@@ -84,249 +76,337 @@
               option-value="id"
               option-label="name"
               clearable
-              @update:model-value="handleSaveWhatsApp(item)"
-            >
-              <template #no-option>
-                <q-item>
-                  <q-item-section class="text-grey">
-                    Nenhum bot encontrado
-                  </q-item-section>
-                </q-item>
-              </template>
-            </q-select>
+              @input="handleSaveWhatsApp(item)"
+            />
           </q-card-section>
-
           <q-separator />
-
-          <!-- Ações do Canal -->
-          <q-card-actions class="q-gutter-md q-pa-md q-pt-none" align="center">
+          <q-card-actions
+            class="q-gutter-md q-pa-md q-pt-none"
+            align="center"
+          >
             <template v-if="item.type !== 'messenger'">
-              <!-- QR Code -->
               <q-btn
-                v-if="item.type === 'whatsapp' && item.status === 'qrcode'"
                 rounded
+                v-if="item.type == 'whatsapp' && item.status == 'qrcode'"
                 color="blue-5"
                 label="QR Code"
-                icon-right="qr_code"
+                @click="handleOpenQrModal(item, 'btn-qrCode')"
+                icon-right="watch_later"
                 :disable="!isAdmin"
-                @click="handleOpenQrModal(item)"
-              >
-                <q-tooltip>Visualizar QR Code</q-tooltip>
-              </q-btn>
+              />
 
-              <!-- Desconectado -->
-              <div v-if="item.status === 'DISCONNECTED'" class="q-gutter-sm">
+              <div
+                v-if="item.status == 'DISCONNECTED'"
+                class="q-gutter-sm"
+              >
                 <q-btn
                   rounded
                   color="positive"
-                  icon="link"
                   label="Conectar"
                   @click="handleStartWhatsAppSession(item.id)"
-                >
-                  <q-tooltip>Iniciar conexão</q-tooltip>
-                </q-btn>
-
+                />
                 <q-btn
-                  v-if="item.type === 'whatsapp'"
                   rounded
+                  v-if="item.status == 'DISCONNECTED' && item.type == 'whatsapp'"
                   color="blue-5"
-                  icon="refresh"
                   label="Novo QR Code"
+                  @click="handleRequestNewQrCode(item, 'btn-qrCode')"
+                  icon-right="watch_later"
                   :disable="!isAdmin"
-                  @click="handleRequestNewQrCode(item)"
-                >
-                  <q-tooltip>Gerar novo QR Code</q-tooltip>
-                </q-btn>
+                />
               </div>
 
-              <!-- Conectando -->
               <div
-                v-if="item.status === 'OPENING'"
-                class="row items-center q-gutter-sm"
+                v-if="item.status == 'OPENING'"
+                class="row items-center q-gutter-sm flex flex-inline"
               >
-                <div class="text-bold">Conectando</div>
-                <q-spinner-radio color="positive" size="2em" />
+                <div class="text-bold">
+                  Conectando
+                </div>
+                <q-spinner-radio
+                  color="positive"
+                  size="2em"
+                />
+                <q-separator
+                  vertical
+                  spaced=""
+                />
               </div>
 
-              <!-- Conectado -->
               <q-btn
                 v-if="['OPENING', 'CONNECTED', 'PAIRING', 'TIMEOUT'].includes(item.status)"
                 color="negative"
-                icon="link_off"
                 label="Desconectar"
-                :disable="!isAdmin"
                 @click="handleDisconectWhatsSession(item.id)"
-              >
-                <q-tooltip>Encerrar conexão</q-tooltip>
-              </q-btn>
+                :disable="!isAdmin"
+                class="q-mx-sm"
+              />
             </template>
-
-            <!-- Excluir -->
             <q-btn
               color="red"
-              icon="delete"
+              icon="mdi-delete"
+              @click="deleteWhatsapp(item)"
+              :disable="!isAdmin"
               dense
               round
               flat
               class="absolute-bottom-right"
-              :disable="!isAdmin"
-              @click="deleteWhatsapp(item)"
             >
-              <q-tooltip>Excluir canal</q-tooltip>
+              <q-tooltip>
+                Deletar conexáo
+              </q-tooltip>
             </q-btn>
           </q-card-actions>
         </q-card>
       </template>
     </div>
-
-    <!-- Modais -->
     <ModalQrCode
-      v-model="abrirModalQR"
-      :channel="dadosWhatsappSelecionado"
-      @gerar-novo-qrcode="handleRequestNewQrCode"
+      :abrirModalQR.sync="abrirModalQR"
+      :channel="cDadosWhatsappSelecionado"
+      @gerar-novo-qrcode="v => handleRequestNewQrCode(v, 'btn-qrCode')"
     />
-
     <ModalWhatsapp
-      v-model="modalWhatsapp"
-      v-model:whatsapp-edit="whatsappSelecionado"
+      :modalWhatsapp.sync="modalWhatsapp"
+      :whatsAppEdit.sync="whatsappSelecionado"
       @recarregar-lista="listarWhatsapps"
     />
-
-    <!-- Loading -->
     <q-inner-loading :showing="loading">
-      <q-spinner-gears size="50px" color="primary" />
+      <q-spinner-gears
+        size="50px"
+        color="primary"
+      />
     </q-inner-loading>
   </div>
 </template>
 
-<script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
-import { useSessaoWhatsapp } from '../../composables/sessaoWhatsapp/useSessaoWhatsapp'
-import ModalQrCode from './ModalQrCode.vue'
-import ModalWhatsapp from './ModalWhatsapp.vue'
-import ItemStatusChannel from './ItemStatusChannel.vue'
+<script>
 
-// Estado
-const userProfile = ref(localStorage.getItem('profile'))
+import { DeletarWhatsapp, DeleteWhatsappSession, StartWhatsappSession, ListarWhatsapps, RequestNewQrCode, UpdateWhatsapp } from 'src/service/sessoesWhatsapp'
+import { format, parseISO } from 'date-fns'
+import pt from 'date-fns/locale/pt-BR/index'
+import ModalQrCode from './ModalQrCode'
+import { mapGetters } from 'vuex'
+import ModalWhatsapp from './ModalWhatsapp'
+import ItemStatusChannel from './ItemStatusChannel'
+import { ListarChatFlow } from 'src/service/chatFlow'
 
-// Composables
-const {
-  loading,
-  isAdmin,
-  abrirModalQR,
-  modalWhatsapp,
-  whatsappSelecionado,
-  listaChatFlow,
-  whatsAppId,
-  canais,
-  columns,
-  whatsapps,
-  dadosWhatsappSelecionado,
-  formatarData,
-  listarWhatsapps,
-  listarChatFlow,
-  handleOpenQrModal,
-  handleOpenModalWhatsapp,
-  handleDisconectWhatsSession,
-  handleStartWhatsAppSession,
-  handleRequestNewQrCode,
-  deleteWhatsapp,
-  handleSaveWhatsApp,
-  initialize
-} = useSessaoWhatsapp()
+const userLogado = JSON.parse(localStorage.getItem('usuario'))
 
-// Watch
-watch(whatsapps, () => {
-  canais.value = JSON.parse(JSON.stringify(whatsapps.value))
-}, { deep: true })
-
-// Lifecycle
-onMounted(() => {
-  initialize()
-})
-
-onUnmounted(() => {
-  // Cleanup se necessário
-})
+export default {
+  name: 'IndexSessoesWhatsapp',
+  components: {
+    ModalQrCode,
+    ModalWhatsapp,
+    ItemStatusChannel
+  },
+  data () {
+    return {
+      userProfile: 'user',
+      loading: false,
+      userLogado,
+      isAdmin: false,
+      abrirModalQR: false,
+      modalWhatsapp: false,
+      whatsappSelecionado: {},
+      listaChatFlow: [],
+      whatsAppId: null,
+      canais: [],
+      objStatus: {
+        qrcode: ''
+      },
+      columns: [
+        {
+          name: 'name',
+          label: 'Nome',
+          field: 'name',
+          align: 'left'
+        },
+        {
+          name: 'status',
+          label: 'Status',
+          field: 'status',
+          align: 'center'
+        },
+        {
+          name: 'session',
+          label: 'Sessão',
+          field: 'status',
+          align: 'center'
+        },
+        {
+          name: 'number',
+          label: 'Número',
+          field: 'number',
+          align: 'center'
+        },
+        {
+          name: 'updatedAt',
+          label: 'Última Atualização',
+          field: 'updatedAt',
+          align: 'center',
+          format: d => this.formatarData(d, 'dd/MM/yyyy HH:mm')
+        },
+        {
+          name: 'isDefault',
+          label: 'Padrão',
+          field: 'isDefault',
+          align: 'center'
+        },
+        {
+          name: 'acoes',
+          label: 'Ações',
+          field: 'acoes',
+          align: 'center'
+        }
+      ]
+    }
+  },
+  watch: {
+    whatsapps: {
+      handler () {
+        this.canais = JSON.parse(JSON.stringify(this.whatsapps))
+      },
+      deep: true
+    }
+  },
+  computed: {
+    ...mapGetters(['whatsapps']),
+    cDadosWhatsappSelecionado () {
+      const { id } = this.whatsappSelecionado
+      return this.whatsapps.find(w => w.id === id)
+    }
+  },
+  methods: {
+    formatarData (data, formato) {
+      return format(parseISO(data), formato, { locale: pt })
+    },
+    handleOpenQrModal (channel) {
+      this.whatsappSelecionado = channel
+      this.abrirModalQR = true
+    },
+    handleOpenModalWhatsapp (whatsapp) {
+      this.whatsappSelecionado = whatsapp
+      this.modalWhatsapp = true
+    },
+    async handleDisconectWhatsSession (whatsAppId) {
+      this.$q.dialog({
+        title: 'Atenção!! Deseja realmente desconectar? ',
+        cancel: {
+          label: 'Não',
+          color: 'primary',
+          push: true
+        },
+        ok: {
+          label: 'Sim',
+          color: 'negative',
+          push: true
+        },
+        persistent: true
+      }).onOk(() => {
+        this.loading = true
+        DeleteWhatsappSession(whatsAppId).then(() => {
+          const whatsapp = this.whatsapps.find(w => w.id === whatsAppId)
+          this.$store.commit('UPDATE_WHATSAPPS', {
+            ...whatsapp,
+            status: 'DISCONNECTED'
+          })
+        }).finally(f => {
+          this.loading = false
+        })
+      })
+    },
+    async handleStartWhatsAppSession (whatsAppId) {
+      try {
+        await StartWhatsappSession(whatsAppId)
+      } catch (error) {
+        console.error(error)
+      }
+    },
+    async handleRequestNewQrCode (channel, origem) {
+      if (channel.type === 'telegram' && !channel.tokenTelegram) {
+        this.$notificarErro('Necessário informar o token para Telegram')
+      }
+      this.loading = true
+      try {
+        await RequestNewQrCode({ id: channel.id, isQrcode: true })
+        setTimeout(() => {
+          this.handleOpenQrModal(channel)
+        }, 2000)
+      } catch (error) {
+        console.error(error)
+      }
+      this.loading = false
+    },
+    async listarWhatsapps () {
+      const { data } = await ListarWhatsapps()
+      this.$store.commit('LOAD_WHATSAPPS', data)
+    },
+    async deleteWhatsapp (whatsapp) {
+      this.$q.dialog({
+        title: 'Atenção!! Deseja realmente deletar? ',
+        message: 'Não é uma boa ideia apagar se já tiver gerado atendimentos para esse whatsapp.',
+        cancel: {
+          label: 'Não',
+          color: 'primary',
+          push: true
+        },
+        ok: {
+          label: 'Sim',
+          color: 'negative',
+          push: true
+        },
+        persistent: true
+      }).onOk(() => {
+        this.loading = true
+        DeletarWhatsapp(whatsapp.id).then(r => {
+          this.$store.commit('DELETE_WHATSAPPS', whatsapp.id)
+        }).finally(f => {
+          this.loading = false
+        })
+      })
+    },
+    async listarChatFlow () {
+      const { data } = await ListarChatFlow()
+      this.listaChatFlow = data.chatFlow
+    },
+    async handleSaveWhatsApp (whatsapp) {
+      try {
+        await UpdateWhatsapp(whatsapp.id, whatsapp)
+        this.$q.notify({
+          type: 'positive',
+          progress: true,
+          position: 'top',
+          message: `Whatsapp ${whatsapp.id ? 'editado' : 'criado'} com sucesso!`,
+          actions: [{
+            icon: 'close',
+            round: true,
+            color: 'white'
+          }]
+        })
+      } catch (error) {
+        console.error(error)
+        return this.$q.notify({
+          type: 'error',
+          progress: true,
+          position: 'top',
+          message: 'Ops! Verifique os erros... O nome da conexão não pode existir na plataforma, é um identificador único.',
+          actions: [{
+            icon: 'close',
+            round: true,
+            color: 'white'
+          }]
+        })
+      }
+    }
+  },
+  mounted () {
+    this.userProfile = localStorage.getItem('profile')
+    this.isAdmin = localStorage.getItem('profile')
+    this.listarWhatsapps()
+    this.listarChatFlow()
+  }
+}
 </script>
 
 <style lang="scss" scoped>
-.sessao-whatsapp {
-  // Cards
-  .canal-card {
-    transition: all 0.3s ease;
-    display: flex;
-    flex-direction: column;
-
-    &:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    }
-
-    // Garante que as seções ocupem todo o espaço
-    .q-card__section {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-    }
-
-    // Avatar
-    .q-avatar {
-      transition: all 0.3s ease;
-
-      &:hover {
-        transform: scale(1.1);
-      }
-    }
-
-    // Labels
-    .q-item-label {
-      &.text-h6 {
-        line-height: 1.2;
-      }
-    }
-
-    // Select
-    .q-select {
-      .q-field__control {
-        transition: all 0.3s ease;
-
-        &:hover {
-          border-color: var(--q-primary);
-        }
-      }
-    }
-
-    // Botões
-    .q-btn {
-      opacity: 0.9;
-      transition: all 0.3s ease;
-
-      &:hover {
-        opacity: 1;
-        transform: scale(1.05);
-      }
-    }
-  }
-}
-
-// Tema escuro
-:deep(.body--dark) {
-  .sessao-whatsapp {
-    .canal-card {
-      &:hover {
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-      }
-    }
-  }
-}
-
-// Responsividade
-@media (max-width: 599px) {
-  .sessao-whatsapp {
-    .canal-card {
-      margin: 8px !important;
-    }
-  }
-}
 </style>

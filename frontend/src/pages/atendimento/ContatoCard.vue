@@ -10,40 +10,47 @@
   </div>
 </template>
 
-<script setup>
-import { ref, onMounted, defineProps } from 'vue'
-
-const props = defineProps({
-  mensagem: {
-    type: Object,
-    required: true
-  }
-})
-
-const parsedContact = ref({})
-
-const parseVCard = (vcard) => {
-  const lines = vcard.split('\n')
-  const contact = {
-    name: '',
-    number: '',
-    photo: ''
-  }
-  lines.forEach(line => {
-    if (line.startsWith('FN:')) {
-      contact.name = line.substring(3)
-    } else if (line.startsWith('TEL') || line.includes('.TEL')) {
-      contact.number = line.split(':')[1]
-    } else if (line.startsWith('PHOTO;BASE64')) {
-      contact.photo = line.split(':')[1]
+<script>
+export default {
+  name: 'ContatoCard',
+  props: {
+    mensagem: {
+      type: Object,
+      required: true
     }
-  })
-  return contact
+  },
+  data () {
+    return {
+      parsedContact: {}
+    }
+  },
+  methods: {
+    parseVCard (vcard) {
+      const lines = vcard.split('\n')
+      const contact = {
+        name: '',
+        number: '',
+        photo: ''
+      }
+      lines.forEach(line => {
+        if (line.startsWith('FN:')) {
+          contact.name = line.substring(3)
+        } else if (line.startsWith('TEL') || line.includes('.TEL')) {
+          contact.number = line.split(':')[1]
+        } else if (line.startsWith('PHOTO;BASE64')) {
+          contact.photo = line.split(':')[1]
+        }
+      })
+      return contact
+    },
+    addContact (contact) {
+      this.$emit('openContactModal', contact)
+    }
+  },
+  mounted () {
+    this.parsedContact = this.parseVCard(this.mensagem.body)
+  }
 }
-
-onMounted(() => {
-  parsedContact.value = parseVCard(props.mensagem.body)
-})
 </script>
 
 <style scoped>
