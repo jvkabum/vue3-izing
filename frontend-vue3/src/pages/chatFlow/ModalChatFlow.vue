@@ -64,84 +64,97 @@
       </q-card-actions>
     </q-card>
   </q-dialog>
-
 </template>
 
-<script>
-const userId = +localStorage.getItem('userId')
+<script setup>
+import { reactive } from 'vue'
+import { useQuasar } from 'quasar'
 import { CriarChatFlow, UpdateChatFlow } from 'src/service/chatFlow'
 import { getDefaultFlow } from 'src/components/ccFlowBuilder/defaultFlow'
 
-export default {
-  name: 'ModalNovoChatFlow',
-  props: {
-    modalChatFlow: {
-      type: Boolean,
-      default: false
-    },
-    chatFlowEdicao: {
-      type: Object,
-      default: () => {
-        return { id: null }
-      }
-    }
+const props = defineProps({
+  modalChatFlow: {
+    type: Boolean,
+    default: false
   },
-  data () {
-    return {
-      chatFlow: {
-        name: null,
-        userId,
-        celularTeste: null,
-        isActive: true
-      }
-      // options: [
-      //   { value: 0, label: 'Entrada (Criação do Ticket)' },
-      //   { value: 1, label: 'Encerramento (Resolução Ticket)' }
-      // ]
+  chatFlowEdicao: {
+    type: Object,
+    default: () => ({ id: null })
+  }
+})
+
+const emit = defineEmits([
+  'update:modalChatFlow',
+  'update:chatFlowEdicao',
+  'chat-flow-editado',
+  'chat-flow-criada'
+])
+
+const userId = +localStorage.getItem('userId')
+const $q = useQuasar()
+
+const chatFlow = reactive({
+  name: null,
+  userId,
+  celularTeste: null,
+  isActive: true
+})
+
+const abrirModal = () => {
+  if (props.chatFlowEdicao.id) {
+    Object.assign(chatFlow, {
+      ...props.chatFlowEdicao,
+      userId
+    })
+  } else {
+    Object.assign(chatFlow, {
+      name: null,
+      action: 0,
+      userId,
+      celularTeste: null,
+      isActive: true
+    })
+  }
+}
+
+const fecharModal = () => {
+  Object.assign(chatFlow, {
+    name: null,
+    action: 0,
+    userId,
+    celularTeste: null,
+    isActive: true
+  })
+  emit('update:chatFlowEdicao', { id: null })
+  emit('update:modalChatFlow', false)
+}
+
+const handleAutoresposta = async () => {
+  try {
+    if (chatFlow.id && !chatFlow?.isDuplicate) {
+      const { data } = await UpdateChatFlow(chatFlow)
+      $q.notify({
+        type: 'positive',
+        message: 'Fluxo editado.'
+      })
+      emit('chat-flow-editado', data)
+    } else {
+      // setar id = null para rotina de duplicação de fluxo
+      const flow = { ...getDefaultFlow(), ...chatFlow, id: null }
+      const { data } = await CriarChatFlow(flow)
+      $q.notify({
+        type: 'positive',
+        message: 'Novo fluxo criado.'
+      })
+      emit('chat-flow-criada', data)
     }
-  },
-  methods: {
-    abrirModal () {
-      if (this.chatFlowEdicao.id) {
-        this.chatFlow = {
-          ...this.chatFlowEdicao,
-          userId
-        }
-      } else {
-        this.chatFlow = {
-          name: null,
-          action: 0,
-          userId,
-          celularTeste: null,
-          isActive: true
-        }
-      }
-    },
-    fecharModal () {
-      this.chatFlow = {
-        name: null,
-        action: 0,
-        userId,
-        celularTeste: null,
-        isActive: true
-      }
-      this.$emit('update:chatFlowEdicao', { id: null })
-      this.$emit('update:modalChatFlow', false)
-    },
-    async handleAutoresposta () {
-      if (this.chatFlow.id && !this.chatFlow?.isDuplicate) {
-        const { data } = await UpdateChatFlow(this.chatFlow)
-        this.$notificarSucesso('Fluxo editado.')
-        this.$emit('chatFlow:editado', data)
-      } else {
-        // setar id = null para rotina de duplicação de fluxo
-        const flow = { ...getDefaultFlow(), ...this.chatFlow, id: null }
-        const { data } = await CriarChatFlow(flow)
-        this.$notificarSucesso('Novo fluxo criado.')
-        this.$emit('chatFlow:criada', data)
-      }
-      this.fecharModal()
-    }
+    fecharModal()
+  } catch (error) {
+    $q.notify({
+      type: 'negative',
+      message: 'Erro ao salvar o fluxo',
+      caption: error.message
+    })
   }
 }
 </script>
