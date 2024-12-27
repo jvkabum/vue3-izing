@@ -1,7 +1,7 @@
 <template>
   <q-dialog
     persistent
-    :value="modalTenant"
+    :modelValue="modalTenant"
     @hide="fecharModal"
     @show="abrirModal"
   >
@@ -65,8 +65,11 @@
 </template>
 
 <script>
+import { defineComponent, ref, reactive, watch } from 'vue'
+import { useQuasar } from 'quasar'
 import { CriarTenant, AlterarTenant } from 'src/service/empresas'
-export default {
+
+export default defineComponent({
   name: 'ModalTenant',
   props: {
     modalTenant: {
@@ -75,62 +78,71 @@ export default {
     },
     tenantEdicao: {
       type: Object,
-      default: () => {
-        return { id: null }
-      }
+      default: () => ({ id: null })
     }
   },
-  data () {
-    return {
-      tenant: {
-        id: null,
-        status: 'active',
-        name: null,
-        maxUsers: null,
-        maxConnections: null,
-        bmToken: null
-      },
-      toggleStatus: false
-    }
-  },
-  watch: {
-    'tenant.status': function (newStatus) {
-      this.toggleStatus = newStatus === 'active'
-    },
-    toggleStatus: function (newToggleStatus) {
-      this.tenant.status = newToggleStatus ? 'active' : 'inactive'
-    }
-  },
-  methods: {
-    resetarTenant () {
-      this.tenant = {
+  emits: ['update:modalTenant', 'update:tenantEdicao', 'modal-tenant-editada', 'modal-tenant-criada'],
+  setup(props, { emit }) {
+    const $q = useQuasar()
+    const loading = ref(false)
+    const toggleStatus = ref(false)
+    
+    const tenant = reactive({
+      id: null,
+      status: 'active',
+      name: null,
+      maxUsers: null,
+      maxConnections: null,
+      bmToken: null
+    })
+
+    const resetarTenant = () => {
+      Object.assign(tenant, {
         id: null,
         status: null,
         name: null,
         maxUsers: null,
         maxConnections: null,
         bmToken: null
-      }
-    },
-    fecharModal () {
-      this.resetarTenant()
-      this.$emit('update:tenantEdicao', { id: null })
-      this.$emit('update:modalTenant', false)
-    },
-    abrirModal () {
-      if (this.tenantEdicao.id) {
-        this.tenant = { ...this.tenantEdicao }
+      })
+    }
+
+    const fecharModal = () => {
+      resetarTenant()
+      emit('update:tenantEdicao', { id: null })
+      emit('update:modalTenant', false)
+    }
+
+    const abrirModal = () => {
+      if (props.tenantEdicao.id) {
+        Object.assign(tenant, props.tenantEdicao)
       } else {
-        this.resetarTenant()
+        resetarTenant()
       }
-    },
-    async handleTenant () {
+    }
+
+    const notificarErro = (message, error) => {
+      console.error(error)
+      $q.notify({
+        type: 'negative',
+        progress: true,
+        position: 'top',
+        message,
+        actions: [{
+          icon: 'close',
+          round: true,
+          color: 'white'
+        }]
+      })
+    }
+
+    const handleTenant = async () => {
       try {
-        this.loading = true
-        if (this.tenant.id) {
-          const { data } = await AlterarTenant(this.tenant)
-          this.$emit('modal-tenant:editada', data)
-          this.$q.notify({
+        loading.value = true
+        if (tenant.id) {
+          const { data } = await AlterarTenant(tenant)
+          emit('modal-tenant-editada', data)
+          $q.notify({
             type: 'info',
             progress: true,
             position: 'top',
@@ -143,9 +155,9 @@ export default {
             }]
           })
         } else {
-          const { data } = await CriarTenant(this.tenant)
-          this.$emit('modal-tenant:criada', data)
-          this.$q.notify({
+          const { data } = await CriarTenant(tenant)
+          emit('modal-tenant-criada', data)
+          $q.notify({
             type: 'positive',
             progress: true,
             position: 'top',
@@ -157,18 +169,24 @@ export default {
             }]
           })
         }
-        this.loading = false
-        this.fecharModal()
+        loading.value = false
+        fecharModal()
       } catch (error) {
-        console.error(error)
-        this.$notificarErro('Ocorreu um erro ao criar a Empresa', error)
+        notificarErro('Ocorreu um erro ao criar a Empresa', error)
       }
-    },
-    validateAndHandleTenant () {
-      if (this.areRequiredFieldsFilled()) {
-        this.handleTenant()
+    }
+
+    const areRequiredFieldsFilled = () => 
+      tenant.name &&
+      tenant.maxUsers !== null &&
+      tenant.maxConnections !== null &&
+      tenant.status !== null
+
+    const validateAndHandleTenant = () => {
+      if (areRequiredFieldsFilled()) {
+        handleTenant()
       } else {
-        this.$q.notify({
+        $q.notify({
           type: 'negative',
           progress: true,
           position: 'top',
@@ -180,17 +198,27 @@ export default {
           }]
         })
       }
-    },
-    areRequiredFieldsFilled () {
-      return (
-        this.tenant.name &&
-        this.tenant.maxUsers !== null &&
-        this.tenant.maxConnections !== null &&
-        this.tenant.status !== null
-      )
+    }
+
+    // Watchers
+    watch(() => tenant.status, newStatus => {
+      toggleStatus.value = newStatus === 'active'
+    })
+
+    watch(toggleStatus, newToggleStatus => {
+      tenant.status = newToggleStatus ? 'active' : 'inactive'
+    })
+
+    return {
+      tenant,
+      loading,
+      toggleStatus,
+      fecharModal,
+      abrirModal,
+      validateAndHandleTenant
     }
   }
-}
+})
 </script>
 
 <style lang="scss" scoped>

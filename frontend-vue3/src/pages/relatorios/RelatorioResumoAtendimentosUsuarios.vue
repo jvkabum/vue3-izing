@@ -2,7 +2,7 @@
   <div v-if="userProfile === 'admin'">
     <q-card bordered>
       <q-card-section>
-        <div class="text-h6 q-px-sm"> Relatório Resumo Atendimentos Usuários </div>
+        <div class="text-h6 q-px-sm">Relatório Resumo Atendimentos Usuários</div>
       </q-card-section>
       <q-card-section class="q-pt-none">
         <fieldset class="rounded-all">
@@ -39,13 +39,13 @@
                 rounded
                 icon="print"
                 label="Imprimir"
-                @click="printReport('tRelatorioResumoAtendimentosUsuarios')"
+                @click="printReport"
               />
               <q-btn
                 color="warning"
                 label="Excel"
                 rounded
-                @click="exportTable('tRelatorioResumoAtendimentosUsuarios')"
+                @click="exportTable"
               />
             </div>
           </div>
@@ -59,10 +59,7 @@
           class="tableLarge q-ma-sm q-markup-table q-table__container q-table__card q-table--cell-separator q-table--flat q-table--bordered q-table--no-wrap"
           id="tRelatorioResumoAtendimentosUsuarios"
         >
-          <table
-            id="tableRelatorioResumoAtendimentosUsuarios"
-            class="q-pb-md q-table q-tabs--dense "
-          >
+          <table id="tableRelatorioResumoAtendimentosUsuarios" class="q-pb-md q-table q-tabs--dense">
             <thead>
               <tr>
                 <td
@@ -75,13 +72,10 @@
             </thead>
             <tbody>
               <template v-if="!bl_sintetico">
-                <tr
-                  v-for="row in dadosResumo"
-                  :key="row.number"
-                >
+                <tr v-for="row in dadosResumo" :key="row.number">
                   <td
                     v-for="col in columns"
-                    :key="col.name +'-'+ row.id"
+                    :key="col.name + '-' + row.id"
                     :class="col.class"
                     :style="col.style"
                   >
@@ -89,20 +83,19 @@
                   </td>
                 </tr>
               </template>
-
             </tbody>
           </table>
         </div>
       </div>
     </div>
 
-    <ccPrintModelLandscape
+    <CcPrintModelLandscape
       id="slotTableRelatorioResumoAtendimentosUsuarios"
       :imprimirRelatorio="imprimir"
       title="Relatório de Resumo Atendimentos Usuários"
       :styleP="`
-      table { width: 100%; font-size: 10px; border-spacing: 1; border-collapse: collapse;  }
-      #tableReport tr td { border:1px solid #DDD; padding-left: 10px; padding-right: 10px;  }
+      table { width: 100%; font-size: 10px; border-spacing: 1; border-collapse: collapse; }
+      #tableReport tr td { border:1px solid #DDD; padding-left: 10px; padding-right: 10px; }
       #tableReport thead tr:nth-child(1) td { text-align: center; padding: 5px; font-weight: bold; color: #000; background: lightgrey; opacity: 1; }
       #lineGroup { background: #f8f8f8; line-height: 30px; }
       #quebraAgrupamentoRelatorio { border-bottom: 1px solid black !important; }
@@ -111,7 +104,7 @@
       `"
     >
       <template v-slot:body>
-        <table class="q-pb-md q-table q-tabs--dense ">
+        <table class="q-pb-md q-table q-tabs--dense">
           <thead>
             <tr>
               <td
@@ -124,13 +117,10 @@
           </thead>
           <tbody>
             <template v-if="!bl_sintetico">
-              <tr
-                v-for="row in dadosResumo"
-                :key="row.number"
-              >
+              <tr v-for="row in dadosResumo" :key="row.number">
                 <td
                   v-for="col in columns"
-                  :key="col.name +'-'+ row.id"
+                  :key="col.name + '-' + row.id"
                   :class="col.class"
                   :style="col.style"
                 >
@@ -138,92 +128,167 @@
                 </td>
               </tr>
             </template>
-
           </tbody>
         </table>
       </template>
-    </ccPrintModelLandscape>
-
+    </CcPrintModelLandscape>
   </div>
 </template>
 
 <script>
+import { defineComponent, ref, reactive, onMounted, inject } from 'vue'
 import { format, sub } from 'date-fns'
-import ccPrintModelLandscape from './ccPrintModelLandscape'
+import CcPrintModelLandscape from './ccPrintModelLandscape.vue'
 import XLSX from 'xlsx'
 import { RelatorioResumoAtendimentosUsuarios } from 'src/service/estatisticas'
 
-export default {
+export default defineComponent({
   name: 'RelatorioResumoAtendimentosUsuarios',
-  components: { ccPrintModelLandscape },
+  components: { CcPrintModelLandscape },
   props: {
     moduloAtendimento: {
       type: Boolean,
       default: false
     }
   },
-  data () {
-    return {
-      userProfile: 'user',
-      data: null,
-      bl_sintetico: false,
-      dadosResumo: [],
-      columns: [
-        { name: 'name', label: 'Nome', field: 'name', align: 'left', style: 'width: 300px', format: v => !v ? 'Não Informado' : v },
-        { name: 'email', label: 'E-Mail', field: 'email', align: 'left', style: 'width: 300px', format: v => !v ? 'Não Informado' : v },
-        { name: 'qtd_pendentes', label: 'Pendentes', field: 'qtd_pendentes', align: 'center', style: 'width: 300px; text-align: center;' },
-        { name: 'qtd_em_atendimento', label: 'Em Atendimento', field: 'qtd_em_atendimento', align: 'center', style: 'width: 300px; text-align: center;' },
-        { name: 'qtd_resolvidos', label: 'Resolvidos', field: 'qtd_resolvidos', align: 'center', style: 'width: 300px; text-align: center;' },
-        { name: 'qtd_por_usuario', label: 'Total', field: 'qtd_por_usuario', align: 'center', style: 'width: 300px; text-align: center;' },
-        { name: 'menor_tempo_por_usuario', label: 'Menor Tempo (Min)', field: 'menor_tempo_por_usuario', align: 'center', style: 'width: 300px; text-align: center;', format: v => this.$formatarValorMoeda(v, 0) },
-        { name: 'maior_tempo_por_usuario', label: 'Maior Tempo (Min)', field: 'maior_tempo_por_usuario', align: 'center', style: 'width: 300px; text-align: center;', format: v => this.$formatarValorMoeda(v, 0) },
-        { name: 'tempo_medio_por_usuario', label: 'Tempo Médio (Min)', field: 'tempo_medio_por_usuario', style: 'width: 300px; text-align: center;', align: 'left', format: v => this.$formatarValorMoeda(v, 0) }
-      ],
-      pesquisa: {
-        startDate: format(sub(new Date(), { days: 30 }), 'yyyy-MM-dd'),
-        endDate: format(new Date(), 'yyyy-MM-dd')
+  setup() {
+    const $formatarValorMoeda = inject('$formatarValorMoeda')
+    const userProfile = ref('user')
+    const data = ref(null)
+    const bl_sintetico = ref(false)
+    const dadosResumo = ref([])
+    const imprimir = ref(false)
+    const ExibirTabela = ref(true)
+
+    const pesquisa = reactive({
+      startDate: format(sub(new Date(), { days: 30 }), 'yyyy-MM-dd'),
+      endDate: format(new Date(), 'yyyy-MM-dd')
+    })
+
+    const columns = [
+      { 
+        name: 'name', 
+        label: 'Nome', 
+        field: 'name', 
+        align: 'left', 
+        style: 'width: 300px', 
+        format: v => !v ? 'Não Informado' : v 
       },
-      ExibirTabela: true,
-      imprimir: false
+      { 
+        name: 'email', 
+        label: 'E-Mail', 
+        field: 'email', 
+        align: 'left', 
+        style: 'width: 300px', 
+        format: v => !v ? 'Não Informado' : v 
+      },
+      { 
+        name: 'qtd_pendentes', 
+        label: 'Pendentes', 
+        field: 'qtd_pendentes', 
+        align: 'center', 
+        style: 'width: 300px; text-align: center;' 
+      },
+      { 
+        name: 'qtd_em_atendimento', 
+        label: 'Em Atendimento', 
+        field: 'qtd_em_atendimento', 
+        align: 'center', 
+        style: 'width: 300px; text-align: center;' 
+      },
+      { 
+        name: 'qtd_resolvidos', 
+        label: 'Resolvidos', 
+        field: 'qtd_resolvidos', 
+        align: 'center', 
+        style: 'width: 300px; text-align: center;' 
+      },
+      { 
+        name: 'qtd_por_usuario', 
+        label: 'Total', 
+        field: 'qtd_por_usuario', 
+        align: 'center', 
+        style: 'width: 300px; text-align: center;' 
+      },
+      { 
+        name: 'menor_tempo_por_usuario', 
+        label: 'Menor Tempo (Min)', 
+        field: 'menor_tempo_por_usuario', 
+        align: 'center', 
+        style: 'width: 300px; text-align: center;', 
+        format: v => $formatarValorMoeda(v, 0) 
+      },
+      { 
+        name: 'maior_tempo_por_usuario', 
+        label: 'Maior Tempo (Min)', 
+        field: 'maior_tempo_por_usuario', 
+        align: 'center', 
+        style: 'width: 300px; text-align: center;', 
+        format: v => $formatarValorMoeda(v, 0) 
+      },
+      { 
+        name: 'tempo_medio_por_usuario', 
+        label: 'Tempo Médio (Min)', 
+        field: 'tempo_medio_por_usuario', 
+        style: 'width: 300px; text-align: center;', 
+        align: 'left', 
+        format: v => $formatarValorMoeda(v, 0) 
+      }
+    ]
+
+    const sortObject = obj => Object.keys(obj)
+      .sort()
+      .reduce((a, v) => {
+        a[v] = obj[v]
+        return a
+      }, {})
+
+    const printReport = () => {
+      imprimir.value = !imprimir.value
     }
-  },
-  methods: {
-    sortObject (obj) {
-      return Object.keys(obj)
-        .sort().reduce((a, v) => {
-          a[v] = obj[v]
-          return a
-        }, {})
-    },
-    printReport (idElemento) {
-      this.imprimir = !this.imprimir
-    },
-    exportTable () {
+
+    const exportTable = () => {
       const json = XLSX.utils.table_to_sheet(
         document.getElementById('tableRelatorioResumoAtendimentosUsuarios'),
         { raw: true }
       )
       for (const col in json) {
-        if (col[0] == 'J') {
+        if (col[0] === 'J') {
           json[col].t = 'n'
           json[col].v = json[col].v.replace(/\./g, '').replace(',', '.')
-          // json[col].f = `VALUE(${json[col].v})`
         }
       }
       const wb = XLSX.utils.book_new()
       XLSX.utils.book_append_sheet(wb, json, 'Relatório Atendimentos')
       XLSX.writeFile(wb, 'Resumo Atendimentos.xlsx')
-    },
-    async gerarRelatorio () {
-      const { data } = await RelatorioResumoAtendimentosUsuarios(this.pesquisa)
-      this.dadosResumo = data
     }
-  },
-  async mounted () {
-    this.userProfile = localStorage.getItem('profile')
-    this.gerarRelatorio()
+
+    const gerarRelatorio = async () => {
+      const { data: resumoData } = await RelatorioResumoAtendimentosUsuarios(pesquisa)
+      dadosResumo.value = resumoData
+    }
+
+    onMounted(() => {
+      userProfile.value = localStorage.getItem('profile')
+      gerarRelatorio()
+    })
+
+    return {
+      userProfile,
+      data,
+      bl_sintetico,
+      dadosResumo,
+      columns,
+      pesquisa,
+      ExibirTabela,
+      imprimir,
+      sortObject,
+      printReport,
+      exportTable,
+      gerarRelatorio
+    }
   }
-}
+})
 </script>
 
 <style scoped>

@@ -1,6 +1,6 @@
 <template>
   <q-dialog
-    :value="modalAcaoEtapa"
+    :modelValue="modalAcaoEtapa"
     @hide="fecharModal"
     @show="abrirModal"
     persistent
@@ -50,7 +50,7 @@
               map-options
               emit-value
               clearable
-              @input="acaoEtapa.queueId = null; acaoEtapa.userIdDestination = null"
+              @update:model-value="onNextStepChange"
             />
             <q-select
               v-if="acaoEtapa.action === 1"
@@ -65,7 +65,7 @@
               map-options
               emit-value
               clearable
-              @input="acaoEtapa.nextStepId = null; acaoEtapa.userIdDestination = null"
+              @update:model-value="onQueueChange"
             />
             <q-select
               v-if="acaoEtapa.action === 2"
@@ -80,7 +80,7 @@
               map-options
               emit-value
               clearable
-              @input="acaoEtapa.nextStepId = null; acaoEtapa.queueId = null"
+              @update:model-value="onUserChange"
             />
           </div>
         </div>
@@ -149,15 +149,17 @@
       </q-card-actions>
     </q-card>
   </q-dialog>
-
 </template>
 
 <script>
-const userId = +localStorage.getItem('userId')
+import { defineComponent, reactive, ref } from 'vue'
+import { useQuasar } from 'quasar'
 import { CriarAcaoEtapa, EditarAcaoEtapa } from 'src/service/autoResposta'
 import { VEmojiPicker } from 'v-emoji-picker'
 
-export default {
+const userId = +localStorage.getItem('userId')
+
+export default defineComponent({
   name: 'ModalAcaoEtapa',
   components: { VEmojiPicker },
   props: {
@@ -167,15 +169,11 @@ export default {
     },
     acaoEtapaEdicao: {
       type: Object,
-      default: () => {
-        return { id: null }
-      }
+      default: () => ({ id: null })
     },
     etapaAutoResposta: {
       type: Object,
-      default: () => {
-        return { id: null }
-      }
+      default: () => ({ id: null })
     },
     filas: {
       type: Array,
@@ -187,12 +185,34 @@ export default {
     },
     autoReply: {
       type: Object,
-      default: () => { }
+      default: () => ({})
     }
   },
-  data () {
-    return {
-      acaoEtapa: {
+  emits: ['update:modalAcaoEtapa', 'update:acaoEtapaEdicao', 'acao-etapa-editada', 'acao-etapa-criada'],
+  setup(props, { emit }) {
+    const $q = useQuasar()
+    const inputEnvioMensagem = ref(null)
+    const txtContent = ref('')
+
+    const optionsAcao = [
+      { value: 0, label: 'Proxima Etapa' },
+      { value: 1, label: 'Enviar para Fila' },
+      { value: 2, label: 'Enviar para usuário' }
+    ]
+
+    const acaoEtapa = reactive({
+      stepReplyId: null,
+      words: null,
+      action: null,
+      userId,
+      queueId: null,
+      userIdDestination: null,
+      nextStepId: null,
+      replyDefinition: null
+    })
+
+    const resetAcaoEtapa = () => {
+      Object.assign(acaoEtapa, {
         stepReplyId: null,
         words: null,
         action: null,
@@ -201,103 +221,125 @@ export default {
         userIdDestination: null,
         nextStepId: null,
         replyDefinition: null
-      },
-      optionsAcao: [
-        { value: 0, label: 'Proxima Etapa' },
-        { value: 1, label: 'Enviar para Fila' },
-        { value: 2, label: 'Enviar para usuário' }
-      ]
+      })
     }
-  },
-  methods: {
-    resetAcaoEtapa () {
-      this.acaoEtapa = {
-        stepReplyId: null,
-        words: null,
-        action: null,
-        userId,
-        queueId: null,
-        userIdDestination: null,
-        nextStepId: null,
-        replyDefinition: null
-      }
-    },
-    abrirModal () {
-      if (this.acaoEtapaEdicao.id) {
-        this.acaoEtapa = {
-          ...this.acaoEtapaEdicao,
+
+    const abrirModal = () => {
+      if (props.acaoEtapaEdicao.id) {
+        Object.assign(acaoEtapa, {
+          ...props.acaoEtapaEdicao,
           userId
-        }
+        })
       } else {
-        this.resetAcaoEtapa()
+        resetAcaoEtapa()
       }
-    },
-    fecharModal () {
-      this.resetAcaoEtapa()
-      this.$emit('update:acaoEtapaEdicao', { id: null })
-      this.$emit('update:modalAcaoEtapa', false)
-    },
-    async handleAcaoEtapa () {
+    }
+
+    const fecharModal = () => {
+      resetAcaoEtapa()
+      emit('update:acaoEtapaEdicao', { id: null })
+      emit('update:modalAcaoEtapa', false)
+    }
+
+    const onNextStepChange = () => {
+      acaoEtapa.queueId = null
+      acaoEtapa.userIdDestination = null
+    }
+
+    const onQueueChange = () => {
+      acaoEtapa.nextStepId = null
+      acaoEtapa.userIdDestination = null
+    }
+
+    const onUserChange = () => {
+      acaoEtapa.nextStepId = null
+      acaoEtapa.queueId = null
+    }
+
+    const handleAcaoEtapa = async () => {
       const params = {
-        ...this.acaoEtapa,
-        stepReplyId: this.etapaAutoResposta.id
+        ...acaoEtapa,
+        stepReplyId: props.etapaAutoResposta.id
       }
-      if (params.id) {
-        const { data } = await EditarAcaoEtapa(params)
-        this.$emit('acaoEtapa:editada', data)
-        this.$q.notify({
-          type: 'info',
+      try {
+        if (params.id) {
+          const { data } = await EditarAcaoEtapa(params)
+          emit('acao-etapa-editada', data)
+          $q.notify({
+            type: 'info',
+            progress: true,
+            position: 'top',
+            textColor: 'black',
+            message: 'Ação editada!',
+            actions: [{
+              icon: 'close',
+              round: true,
+              color: 'white'
+            }]
+          })
+        } else {
+          const { data } = await CriarAcaoEtapa(params)
+          emit('acao-etapa-criada', data)
+          $q.notify({
+            type: 'positive',
+            progress: true,
+            position: 'top',
+            message: 'Ação criada!',
+            actions: [{
+              icon: 'close',
+              round: true,
+              color: 'white'
+            }]
+          })
+        }
+        fecharModal()
+      } catch (error) {
+        console.error(error)
+        $q.notify({
+          type: 'negative',
           progress: true,
           position: 'top',
-          textColor: 'black',
-          message: 'Ação editada!',
+          message: 'Ocorreu um erro!',
           actions: [{
             icon: 'close',
             round: true,
             color: 'white'
           }]
         })
-      } else {
-        const { data } = await CriarAcaoEtapa(params)
-        this.$emit('acaoEtapa:criada', data)
-        this.$q.notify({
-          type: 'positive',
-          progress: true,
-          position: 'top',
-          message: 'Ação criada!',
-          actions: [{
-            icon: 'close',
-            round: true,
-            color: 'white'
-          }]
-        })
       }
-      this.fecharModal()
-    },
-    onInsertSelectEmoji (emoji) {
-      const self = this
-      var tArea = this.$refs.inputEnvioMensagem
-      // get cursor's position:
-      var startPos = tArea.selectionStart,
-        endPos = tArea.selectionEnd,
-        cursorPos = startPos,
-        tmpStr = tArea.value
-      // filter:
-      if (!emoji.data) {
-        return
-      }
-      // insert:
-      self.txtContent = this.acaoEtapa.replyDefinition
-      self.txtContent = tmpStr.substring(0, startPos) + emoji.data + tmpStr.substring(endPos, tmpStr.length)
-      this.acaoEtapa.replyDefinition = self.txtContent
-      // move cursor:
+    }
+
+    const onInsertSelectEmoji = emoji => {
+      if (!emoji.data) return
+
+      const tArea = inputEnvioMensagem.value
+      const startPos = tArea.selectionStart
+      const endPos = tArea.selectionEnd
+      const tmpStr = tArea.value
+
+      txtContent.value = acaoEtapa.replyDefinition
+      txtContent.value = tmpStr.substring(0, startPos) + emoji.data + tmpStr.substring(endPos, tmpStr.length)
+      acaoEtapa.replyDefinition = txtContent.value
+
       setTimeout(() => {
-        tArea.selectionStart = tArea.selectionEnd = cursorPos + emoji.data.length
+        tArea.selectionStart = tArea.selectionEnd = startPos + emoji.data.length
       }, 10)
     }
-  }
 
-}
+    return {
+      acaoEtapa,
+      optionsAcao,
+      inputEnvioMensagem,
+      fecharModal,
+      abrirModal,
+      handleAcaoEtapa,
+      onInsertSelectEmoji,
+      onNextStepChange,
+      onQueueChange,
+      onUserChange
+    }
+  }
+})
 </script>
 
 <style lang="scss" scoped>

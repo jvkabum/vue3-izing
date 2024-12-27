@@ -1,7 +1,7 @@
 <template>
   <q-dialog
     persistent
-    :value="modalEtapaAutoResposta"
+    :modelValue="modalEtapaAutoResposta"
     @hide="fecharModal"
     @show="abrirModal"
   >
@@ -45,7 +45,6 @@
                 />
               </q-menu>
             </q-btn>
-
           </div>
           <div class="col-xs-8 col-sm-10 col-md-11 q-pl-sm">
             <label class="text-caption">Mensagem da Etapa:</label>
@@ -92,10 +91,12 @@
 </template>
 
 <script>
+import { defineComponent, reactive, ref } from 'vue'
+import { useQuasar } from 'quasar'
 import { VEmojiPicker } from 'v-emoji-picker'
-
 import { CriarEtapaResposta, EditarEtapaResposta } from 'src/service/autoResposta'
-export default {
+
+export default defineComponent({
   name: 'ModalEtapaAutoResposta',
   components: { VEmojiPicker },
   props: {
@@ -105,69 +106,69 @@ export default {
     },
     autoReply: {
       type: Object,
-      default: () => {
-        return { id: null, name: '' }
-      }
+      default: () => ({ id: null, name: '' })
     },
     etapaAutoRespostaEdicao: {
       type: Object,
-      default: () => {
-        return { id: null }
-      }
+      default: () => ({ id: null })
     }
   },
-  data () {
-    return {
-      etapa: {
-        reply: null,
-        idAutoReply: null,
-        action: null,
-        initialStep: false
-      }
-    }
-  },
-  methods: {
-    onInsertSelectEmoji (emoji) {
-      const self = this
-      var tArea = this.$refs.inputEnvioMensagem
-      // get cursor's position:
-      var startPos = tArea.selectionStart,
-        endPos = tArea.selectionEnd,
-        cursorPos = startPos,
-        tmpStr = tArea.value
-      // filter:
-      if (!emoji.data) {
-        return
-      }
-      // insert:
-      self.txtContent = this.etapa.reply
-      self.txtContent = tmpStr.substring(0, startPos) + emoji.data + tmpStr.substring(endPos, tmpStr.length)
-      this.etapa.reply = self.txtContent
-      // move cursor:
+  emits: ['update:modalEtapaAutoResposta', 'update:etapaAutoRespostaEdicao', 'etapa-auto-resposta-editada', 'etapa-auto-resposta-criada'],
+  setup(props, { emit }) {
+    const $q = useQuasar()
+    const loading = ref(false)
+    const inputEnvioMensagem = ref(null)
+    const txtContent = ref('')
+
+    const etapa = reactive({
+      reply: null,
+      idAutoReply: null,
+      action: null,
+      initialStep: false
+    })
+
+    const onInsertSelectEmoji = emoji => {
+      if (!emoji.data) return
+
+      const tArea = inputEnvioMensagem.value
+      const startPos = tArea.selectionStart
+      const endPos = tArea.selectionEnd
+      const tmpStr = tArea.value
+
+      txtContent.value = etapa.reply
+      txtContent.value = tmpStr.substring(0, startPos) + emoji.data + tmpStr.substring(endPos, tmpStr.length)
+      etapa.reply = txtContent.value
+
       setTimeout(() => {
-        tArea.selectionStart = tArea.selectionEnd = cursorPos + emoji.data.length
+        tArea.selectionStart = tArea.selectionEnd = startPos + emoji.data.length
       }, 10)
-    },
-    fecharModal () {
-      this.$emit('update:etapaAutoRespostaEdicao', { id: null })
-      this.$emit('update:modalEtapaAutoResposta', false)
-    },
-    abrirModal () {
-      if (this.etapaAutoRespostaEdicao.id) {
-        this.etapa = { ...this.etapaAutoRespostaEdicao }
+    }
+
+    const fecharModal = () => {
+      emit('update:etapaAutoRespostaEdicao', { id: null })
+      emit('update:modalEtapaAutoResposta', false)
+    }
+
+    const abrirModal = () => {
+      if (props.etapaAutoRespostaEdicao.id) {
+        Object.assign(etapa, props.etapaAutoRespostaEdicao)
       } else {
-        this.etapa = {
+        Object.assign(etapa, {
           reply: null,
           idAutoReply: null,
           initialStep: false
-        }
-        this.etapa.idAutoReply = this.autoReply.id
+        })
+        etapa.idAutoReply = props.autoReply.id
       }
-    },
-    verificarEtapaInicial (dataParams) {
-      const isInitialExists = this.autoReply.stepsReply ? this.autoReply.stepsReply.find(s => s.initialStep && s.id !== dataParams.id) : {}
+    }
+
+    const verificarEtapaInicial = dataParams => {
+      const isInitialExists = props.autoReply.stepsReply 
+        ? props.autoReply.stepsReply.find(s => s.initialStep && s.id !== dataParams.id) 
+        : {}
+
       if (isInitialExists && dataParams.initialStep) {
-        this.$q.notify({
+        $q.notify({
           type: 'negative',
           progress: true,
           timeout: 100000,
@@ -182,19 +183,22 @@ export default {
         })
         throw new Error('Etapa Inicial na Auto Resposta já existente')
       }
-    },
-    async handleEtapaAutoresposta () {
-      this.loading = true
+    }
+
+    const handleEtapaAutoresposta = async () => {
+      loading.value = true
       const dataParams = {
-        ...this.etapa,
-        idAutoReply: this.autoReply.id
+        ...etapa,
+        idAutoReply: props.autoReply.id
       }
-      this.verificarEtapaInicial(dataParams)
+
       try {
-        if (this.etapa.id) {
+        verificarEtapaInicial(dataParams)
+
+        if (etapa.id) {
           const { data } = await EditarEtapaResposta(dataParams)
-          this.$emit('etapaAutoResposta:editada', { ...dataParams, ...data })
-          this.$q.notify({
+          emit('etapa-auto-resposta-editada', { ...dataParams, ...data })
+          $q.notify({
             type: 'info',
             progress: true,
             position: 'top',
@@ -208,8 +212,8 @@ export default {
           })
         } else {
           const { data } = await CriarEtapaResposta(dataParams)
-          this.$emit('etapaAutoResposta:criada', data)
-          this.$q.notify({
+          emit('etapa-auto-resposta-criada', data)
+          $q.notify({
             type: 'positive',
             progress: true,
             position: 'top',
@@ -221,14 +225,38 @@ export default {
             }]
           })
         }
-        this.fecharModal()
+        fecharModal()
       } catch (error) {
         console.error(error)
+        if (error.message !== 'Etapa Inicial na Auto Resposta já existente') {
+          $q.notify({
+            type: 'negative',
+            progress: true,
+            position: 'top',
+            message: 'Ocorreu um erro!',
+            actions: [{
+              icon: 'close',
+              round: true,
+              color: 'white'
+            }]
+          })
+        }
+      } finally {
+        loading.value = false
       }
-      this.loading = false
+    }
+
+    return {
+      etapa,
+      loading,
+      inputEnvioMensagem,
+      onInsertSelectEmoji,
+      fecharModal,
+      abrirModal,
+      handleEtapaAutoresposta
     }
   }
-}
+})
 </script>
 
 <style lang="scss" scoped>

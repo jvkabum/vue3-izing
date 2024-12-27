@@ -1,6 +1,6 @@
 <template>
   <q-dialog
-    :value="modalAutoResposta"
+    :modelValue="modalAutoResposta"
     @hide="fecharModal"
     @show="abrirModal"
     persistent
@@ -20,13 +20,6 @@
           v-model="autoResposta.name"
           label="Descrição"
         />
-        <!-- <div class="row col q-mt-md">
-          <q-option-group
-            v-model="autoResposta.action"
-            :options="options"
-            color="primary"
-          />
-        </div> -->
         <div class="row col q-mt-md">
           <q-checkbox
             v-model="autoResposta.isActive"
@@ -65,13 +58,16 @@
       </q-card-actions>
     </q-card>
   </q-dialog>
-
 </template>
 
 <script>
-const userId = +localStorage.getItem('userId')
+import { defineComponent, reactive } from 'vue'
+import { useQuasar } from 'quasar'
 import { CriarAutoResposta, EditarAutoResposta } from 'src/service/autoResposta'
-export default {
+
+const userId = +localStorage.getItem('userId')
+
+export default defineComponent({
   name: 'ModalAutoResposta',
   props: {
     modalAutoResposta: {
@@ -80,66 +76,104 @@ export default {
     },
     autoRespostaEdicao: {
       type: Object,
-      default: () => {
-        return { id: null }
-      }
+      default: () => ({ id: null })
     }
   },
-  data () {
-    return {
-      autoResposta: {
+  emits: ['update:modalAutoResposta', 'update:autoRespostaEdicao', 'auto-resposta-editado', 'auto-resposta-criada'],
+  setup(props, { emit }) {
+    const $q = useQuasar()
+
+    const autoResposta = reactive({
+      name: null,
+      action: 0,
+      userId,
+      celularTeste: null,
+      isActive: true
+    })
+
+    const resetAutoResposta = () => {
+      Object.assign(autoResposta, {
         name: null,
         action: 0,
         userId,
         celularTeste: null,
         isActive: true
-      }
-      // options: [
-      //   { value: 0, label: 'Entrada (Criação do Ticket)' },
-      //   { value: 1, label: 'Encerramento (Resolução Ticket)' }
-      // ]
+      })
     }
-  },
-  methods: {
-    abrirModal () {
-      if (this.autoRespostaEdicao.id) {
-        this.autoResposta = {
-          ...this.autoRespostaEdicao,
+
+    const abrirModal = () => {
+      if (props.autoRespostaEdicao.id) {
+        Object.assign(autoResposta, {
+          ...props.autoRespostaEdicao,
           userId
-        }
+        })
       } else {
-        this.autoResposta = {
-          name: null,
-          action: 0,
-          userId,
-          celularTeste: null,
-          isActive: true
+        resetAutoResposta()
+      }
+    }
+
+    const fecharModal = () => {
+      resetAutoResposta()
+      emit('update:autoRespostaEdicao', { id: null })
+      emit('update:modalAutoResposta', false)
+    }
+
+    const handleAutoresposta = async () => {
+      try {
+        if (autoResposta.id) {
+          const { data } = await EditarAutoResposta(autoResposta)
+          emit('auto-resposta-editado', data)
+          $q.notify({
+            type: 'info',
+            progress: true,
+            position: 'top',
+            message: 'Auto resposta editada!',
+            actions: [{
+              icon: 'close',
+              round: true,
+              color: 'white'
+            }]
+          })
+        } else {
+          const { data } = await CriarAutoResposta(autoResposta)
+          emit('auto-resposta-criada', data)
+          $q.notify({
+            type: 'positive',
+            progress: true,
+            position: 'top',
+            message: 'Auto resposta criada!',
+            actions: [{
+              icon: 'close',
+              round: true,
+              color: 'white'
+            }]
+          })
         }
+        fecharModal()
+      } catch (error) {
+        console.error(error)
+        $q.notify({
+          type: 'negative',
+          progress: true,
+          position: 'top',
+          message: 'Ocorreu um erro!',
+          actions: [{
+            icon: 'close',
+            round: true,
+            color: 'white'
+          }]
+        })
       }
-    },
-    fecharModal () {
-      this.autoResposta = {
-        name: null,
-        action: 0,
-        userId,
-        celularTeste: null,
-        isActive: true
-      }
-      this.$emit('update:autoRespostaEdicao', { id: null })
-      this.$emit('update:modalAutoResposta', false)
-    },
-    async handleAutoresposta () {
-      if (this.autoResposta.id) {
-        const { data } = await EditarAutoResposta(this.autoResposta)
-        this.$emit('autoResposta:editado', data)
-      } else {
-        const { data } = await CriarAutoResposta(this.autoResposta)
-        this.$emit('autoResposta:criada', data)
-      }
-      this.fecharModal()
+    }
+
+    return {
+      autoResposta,
+      abrirModal,
+      fecharModal,
+      handleAutoresposta
     }
   }
-}
+})
 </script>
 
 <style lang="scss" scoped>

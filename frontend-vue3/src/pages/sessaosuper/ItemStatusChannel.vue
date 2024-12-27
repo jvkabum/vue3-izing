@@ -81,22 +81,17 @@
     </q-item>
   </div>
 </template>
-<script>
+
+<script setup>
 import { format, parseISO } from 'date-fns'
 import pt from 'date-fns/locale/pt-BR/index'
 
-export default {
-  name: 'ItemStatusChannel',
-  props: {
-    item: {
-      type: Object,
-      default: () => { }
-    }
-  },
-  methods: {
-    formatarData (data, formato) {
-      return format(parseISO(data), formato, { locale: pt })
-    }
+defineProps({
+  item: {
+    type: Object,
+    default: () => ({})
   }
-}
+})
+
+const formatarData = (data, formato) => format(parseISO(data), formato, { locale: pt })
 </script>

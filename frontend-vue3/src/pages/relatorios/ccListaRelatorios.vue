@@ -22,8 +22,8 @@
           :to="{name: menu.name}"
         >
           <q-item-section>
-            <q-item-label class="text-primary">{{menu.titulo}}</q-item-label>
-            <q-item-label caption>{{menu.objetivo}}</q-item-label>
+            <q-item-label class="text-primary">{{ menu.titulo }}</q-item-label>
+            <q-item-label caption>{{ menu.objetivo }}</q-item-label>
           </q-item-section>
         </q-item>
       </q-list>
@@ -32,23 +32,26 @@
 </template>
 
 <script>
+import { defineComponent, ref, computed, onMounted } from 'vue'
 import relatorios from './relatorios.json'
-export default {
-  name: 'ccListaRelatorios',
-  computed: {
-    cRelatorios () {
-      return relatorios
-    }
-  },
-  data () {
+
+export default defineComponent({
+  name: 'CcListaRelatorios',
+  setup() {
+    const userProfile = ref('user')
+
+    const cRelatorios = computed(() => relatorios)
+
+    onMounted(() => {
+      userProfile.value = localStorage.getItem('profile')
+    })
+
     return {
-      userProfile: 'user'
+      userProfile,
+      cRelatorios
     }
-  },
-  mounted () {
-    this.userProfile = localStorage.getItem('profile')
   }
-}
+})
 </script>
 
 <style lang="scss" scoped>

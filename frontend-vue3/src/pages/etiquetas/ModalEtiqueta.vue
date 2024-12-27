@@ -1,7 +1,7 @@
 <template>
   <q-dialog
     persistent
-    :value="modalEtiqueta"
+    :modelValue="modalEtiqueta"
     @hide="fecharModal"
     @show="abrirModal"
   >
@@ -78,12 +78,14 @@
       </q-card-actions>
     </q-card>
   </q-dialog>
-
 </template>
 
 <script>
+import { defineComponent, reactive, ref } from 'vue'
+import { useQuasar } from 'quasar'
 import { CriarEtiqueta, AlterarEtiqueta } from 'src/service/etiquetas'
-export default {
+
+export default defineComponent({
   name: 'ModalEtiqueta',
   props: {
     modalEtiqueta: {
@@ -92,49 +94,66 @@ export default {
     },
     etiquetaEdicao: {
       type: Object,
-      default: () => {
-        return { id: null }
-      }
+      default: () => ({ id: null })
     }
   },
-  data () {
-    return {
-      etiqueta: {
+  emits: ['update:modalEtiqueta', 'update:etiquetaEdicao', 'modal-etiqueta-editada', 'modal-etiqueta-criada'],
+  setup(props, { emit }) {
+    const $q = useQuasar()
+    const loading = ref(false)
+
+    const etiqueta = reactive({
+      id: null,
+      tag: null,
+      color: '#ffffff',
+      isActive: true
+    })
+
+    const resetarEtiqueta = () => {
+      Object.assign(etiqueta, {
         id: null,
         tag: null,
         color: '#ffffff',
         isActive: true
-      }
+      })
     }
-  },
-  methods: {
-    resetarEtiqueta () {
-      this.etiqueta = {
-        id: null,
-        tag: null,
-        color: '#ffffff',
-        isActive: true
-      }
-    },
-    fecharModal () {
-      this.resetarEtiqueta()
-      this.$emit('update:etiquetaEdicao', { id: null })
-      this.$emit('update:modalEtiqueta', false)
-    },
-    abrirModal () {
-      if (this.etiquetaEdicao.id) {
-        this.etiqueta = { ...this.etiquetaEdicao }
+
+    const fecharModal = () => {
+      resetarEtiqueta()
+      emit('update:etiquetaEdicao', { id: null })
+      emit('update:modalEtiqueta', false)
+    }
+
+    const abrirModal = () => {
+      if (props.etiquetaEdicao.id) {
+        Object.assign(etiqueta, props.etiquetaEdicao)
       } else {
-        this.resetarEtiqueta()
+        resetarEtiqueta()
       }
-    },
-    async handleEtiqueta () {
+    }
+
+    const notificarErro = (message, error) => {
+      console.error(error)
+      $q.notify({
+        type: 'negative',
+        progress: true,
+        position: 'top',
+        message,
+        actions: [{
+          icon: 'close',
+          round: true,
+          color: 'white'
+        }]
+      })
+    }
+
+    const handleEtiqueta = async () => {
       try {
-        this.loading = true
-        if (this.etiqueta.id) {
-          const { data } = await AlterarEtiqueta(this.etiqueta)
-          this.$emit('modal-etiqueta:editada', data)
-          this.$q.notify({
+        loading.value = true
+        if (etiqueta.id) {
+          const { data } = await AlterarEtiqueta(etiqueta)
+          emit('modal-etiqueta-editada', data)
+          $q.notify({
             type: 'info',
             progress: true,
             position: 'top',
@@ -147,9 +166,9 @@ export default {
             }]
           })
         } else {
-          const { data } = await CriarEtiqueta(this.etiqueta)
-          this.$emit('modal-etiqueta:criada', data)
-          this.$q.notify({
+          const { data } = await CriarEtiqueta(etiqueta)
+          emit('modal-etiqueta-criada', data)
+          $q.notify({
             type: 'positive',
             progress: true,
             position: 'top',
@@ -161,16 +180,22 @@ export default {
             }]
           })
         }
-        this.loading = false
-        this.fecharModal()
+        loading.value = false
+        fecharModal()
       } catch (error) {
-        console.error(error)
-        this.$notificarErro('Ocorreu um erro ao criar a etiqueta', error)
+        notificarErro('Ocorreu um erro ao criar a etiqueta', error)
       }
     }
-  }
 
-}
+    return {
+      etiqueta,
+      loading,
+      fecharModal,
+      abrirModal,
+      handleEtiqueta
+    }
+  }
+})
 </script>
 
 <style lang="scss" scoped>

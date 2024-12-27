@@ -27,10 +27,8 @@
           </div>
         </div>
 
-        <!-- Ícones para Emojis e Variáveis -->
         <div class="row items-center">
           <div class="col-xs-3 col-sm-2 col-md-1">
-            <!-- Emoji Icon -->
             <q-btn
               round
               flat
@@ -59,7 +57,6 @@
               </q-menu>
             </q-btn>
 
-            <!-- Variáveis Icon -->
             <q-btn
               round
               flat
@@ -91,13 +88,13 @@
             </q-btn>
           </div>
 
-          <!-- Textarea for Message -->
           <div class="col-xs-8 col-sm-10 col-md-11 q-pl-sm">
             <label class="text-caption">Mensagem:</label>
             <textarea
               ref="inputEnvioMensagem"
               style="min-height: 15vh; max-height: 15vh;"
               class="q-pa-sm bg-white full-width rounded-all"
+              
               placeholder="Digite a mensagem"
               autogrow
               dense
@@ -108,7 +105,6 @@
           </div>
         </div>
 
-        <!-- Uploader de Arquivos -->
         <div class="row q-my-md">
           <q-uploader
             url=""
@@ -120,17 +116,28 @@
           />
         </div>
 
-        <!-- Exibição das mídias anexadas -->
-        <div v-if="mensagemRapida.medias && mensagemRapida.medias.length" class="media-container">
-          <div v-for="(media, index) in mensagemRapida.medias" :key="index" class="media-item">
-            <q-card class="q-mb-md q-pa-none media-card">
+        <div 
+          v-if="mensagemRapida.medias && mensagemRapida.medias.length" 
+          class="media-container"
+        >
+          <div 
+            v-for="(media, index) in mensagemRapida.medias" 
+            :key="index" 
+            class="media-item"
+          >
+            <q-card 
+              class="q-mb-md q-pa-none media-card"
+            >
               <q-card-section>
-                <!-- Verifica se é uma imagem, senão exibe o ícone de arquivo -->
-                <img v-if="isImage(media)" :src="getMediaUrl(media)" alt="Preview" class="media-image" />
+                <img 
+                  v-if="isImage(media)" 
+                  :src="getMediaUrl(media)" 
+                  alt="Preview" 
+                  class="media-image" 
+                />
                 <q-icon v-else name="mdi-file-outline" class="file-icon" />
               </q-card-section>
               <q-card-actions align="center" class="q-pa-none">
-                <!-- Ícones para Abrir e Excluir -->
                 <q-btn flat @click="abrirMedia(media)">
                   <q-icon name="mdi-eye" />
                   <q-tooltip>Ver</q-tooltip>
@@ -145,14 +152,23 @@
         </div>
       </q-card-section>
 
-      <!-- Botões de ação -->
       <q-card-actions align="right" class="q-mt-md">
-        <q-btn rounded label="Cancelar" color="negative" v-close-popup class="q-mr-md" />
-        <q-btn rounded label="Salvar" color="positive" @click="handleMensagemRapida" />
+        <q-btn 
+          rounded 
+          label="Cancelar" 
+          color="negative" 
+          v-close-popup 
+          class="q-mr-md" 
+        />
+        <q-btn 
+          rounded 
+          label="Salvar" 
+          color="positive" 
+          @click="handleMensagemRapida" 
+        />
       </q-card-actions>
     </q-card>
 
-    <!-- Modal de confirmação para exclusão -->
     <q-dialog v-model="confirmDialog" persistent>
       <q-card>
         <q-card-section>
@@ -160,8 +176,18 @@
           <p>Tem certeza de que deseja excluir esta mídia?</p>
         </q-card-section>
         <q-card-actions align="right">
-          <q-btn flat label="Cancelar" color="primary" v-close-popup />
-          <q-btn flat label="Excluir" color="negative" @click="excluirMedia(mediaToDelete, indexToDelete)" />
+          <q-btn 
+            flat 
+            label="Cancelar" 
+            color="primary" 
+            v-close-popup 
+          />
+          <q-btn 
+            flat 
+            label="Excluir" 
+            color="negative" 
+            @click="excluirMedia(mediaToDelete, indexToDelete)" 
+          />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -169,10 +195,12 @@
 </template>
 
 <script>
+import { defineComponent, ref, reactive } from 'vue'
 import { CriarMensagemRapida, AlterarMensagemRapida, DeletarImagemMensagemRapida } from 'src/service/mensagensRapidas'
 import { VEmojiPicker } from 'v-emoji-picker'
+import { useQuasar } from 'quasar'
 
-export default {
+export default defineComponent({
   name: 'ModalMensagemRapida',
   components: { VEmojiPicker },
   props: {
@@ -182,137 +210,142 @@ export default {
     },
     mensagemRapidaEmEdicao: {
       type: Object,
-      default: () => {
-        return { id: null, key: '', message: '', medias: [] }
-      }
-    }
-  },
-  data () {
-    return {
-      mensagemRapida: {
-        key: null,
+      default: () => ({
+        id: null,
+        key: '',
         message: '',
-        medias: null
-      },
-      arquivoCarregado: null,
-      loading: false,
-      confirmDialog: false,
-      mediaToDelete: null,
-      indexToDelete: null,
-      variaveis: [
-        { label: 'Nome', value: '{{name}}' },
-        { label: 'Saudação', value: '{{greeting}}' },
-        { label: 'Protocolo', value: '{{protocol}}' }
-      ]
+        medias: []
+      })
     }
   },
-  methods: {
-    onInsertSelectEmoji (emoji) {
-      const self = this
-      var tArea = this.$refs.inputEnvioMensagem
-      var startPos = tArea.selectionStart,
-        endPos = tArea.selectionEnd,
-        cursorPos = startPos,
-        tmpStr = tArea.value
+  emits: ['update:mensagemRapidaEmEdicao', 'update:modalMensagemRapida', 'mensagem-rapida-editada', 'mensagem-rapida-criada'],
+  setup(props, { emit }) {
+    const $q = useQuasar()
+    const inputEnvioMensagem = ref(null)
+    const confirmDialog = ref(false)
+    const loading = ref(false)
+    const mediaToDelete = ref(null)
+    const indexToDelete = ref(null)
+    const arquivoCarregado = ref(null)
 
-      if (!emoji.data) {
-        return
-      }
+    const mensagemRapida = reactive({
+      id: null,
+      key: null,
+      message: '',
+      medias: null
+    })
 
-      self.txtContent = this.mensagemRapida.message
-      self.txtContent = tmpStr.substring(0, startPos) + emoji.data + tmpStr.substring(endPos, tmpStr.length)
-      this.mensagemRapida.message = self.txtContent
+    const variaveis = [
+      { label: 'Nome', value: '{{name}}' },
+      { label: 'Saudação', value: '{{greeting}}' },
+      { label: 'Protocolo', value: '{{protocol}}' }
+    ]
+
+    const onInsertSelectEmoji = emoji => {
+      if (!emoji.data) return
+
+      const tArea = inputEnvioMensagem.value
+      const startPos = tArea.selectionStart
+      const endPos = tArea.selectionEnd
+      const cursorPos = startPos
+      const tmpStr = tArea.value
+
+      mensagemRapida.message = tmpStr.substring(0, startPos) + emoji.data + tmpStr.substring(endPos, tmpStr.length)
 
       setTimeout(() => {
         tArea.selectionStart = tArea.selectionEnd = cursorPos + emoji.data.length
       }, 10)
-    },
-    inserirVariavel (variavel) {
-      this.mensagemRapida.message += ' ' + variavel
-    },
-    onFileAdded (files) {
-      this.mensagemRapida.medias = files
-      this.arquivoCarregado = files
-    },
-    abrirMedia (media) {
-      const url = this.getMediaUrl(media)
+    }
+
+    const inserirVariavel = variavel => {
+      mensagemRapida.message = `${mensagemRapida.message} ${variavel}`
+    }
+
+    const onFileAdded = files => {
+      mensagemRapida.medias = files
+      arquivoCarregado.value = files
+    }
+
+    const abrirMedia = media => {
+      const url = getMediaUrl(media)
       window.open(url, '_blank')
-    },
-    confirmarExclusao (media, index) {
-      this.mediaToDelete = media
-      this.indexToDelete = index
-      this.confirmDialog = true
-    },
-    async excluirMedia (media, index) {
+    }
+
+    const confirmarExclusao = (media, index) => {
+      mediaToDelete.value = media
+      indexToDelete.value = index
+      confirmDialog.value = true
+    }
+
+    const excluirMedia = async (media, index) => {
       try {
-        this.confirmDialog = false
-        await DeletarImagemMensagemRapida(this.mensagemRapida.id, media)
-        this.$q.notify({
+        confirmDialog.value = false
+        await DeletarImagemMensagemRapida(mensagemRapida.id, media)
+        $q.notify({
           type: 'positive',
           message: 'Imagem excluída com sucesso!'
         })
-        this.mensagemRapida.medias.splice(index, 1)
+        mensagemRapida.medias.splice(index, 1)
       } catch (error) {
         console.error('Erro ao excluir a imagem:', error)
-        this.$q.notify({
+        $q.notify({
           type: 'negative',
           message: 'Erro ao excluir a imagem.'
         })
       }
-    },
-    isImage (media) {
+    }
+
+    const isImage = media => {
       if (media instanceof File) {
         return media.type.startsWith('image/')
       }
       return media.endsWith('.jpg') || media.endsWith('.jpeg') || media.endsWith('.png')
-    },
-    getMediaUrl (media) {
+    }
+
+    const getMediaUrl = media => {
       if (media instanceof File) {
         return URL.createObjectURL(media)
       }
       return media
-    },
-    getMediaFileName (media) {
-      if (media instanceof File) {
-        return media.name
-      }
-      return media
-    },
-    fecharModal () {
-      this.$emit('update:mensagemRapidaEmEdicao', { id: null })
-      this.$emit('update:modalMensagemRapida', false)
-    },
-    abrirModal () {
-      if (this.mensagemRapidaEmEdicao.id) {
-        this.mensagemRapida = { ...this.mensagemRapidaEmEdicao }
-        console.log('Editando mensagem com ID:', this.mensagemRapida.id)
+    }
+
+    const fecharModal = () => {
+      emit('update:mensagemRapidaEmEdicao', { id: null })
+      emit('update:modalMensagemRapida', false)
+    }
+
+    const abrirModal = () => {
+      if (props.mensagemRapidaEmEdicao.id) {
+        Object.assign(mensagemRapida, props.mensagemRapidaEmEdicao)
+        console.log('Editando mensagem com ID:', mensagemRapida.id)
       } else {
-        this.mensagemRapida = {
+        Object.assign(mensagemRapida, {
           key: null,
           message: '',
           medias: null
-        }
+        })
       }
-    },
-    async handleMensagemRapida () {
-      const formData = new FormData()
-      formData.append('key', this.mensagemRapida.key)
-      formData.append('message', this.mensagemRapida.message)
+    }
 
-      if (this.mensagemRapida.medias) {
-        this.mensagemRapida.medias.forEach((file) => {
+    const handleMensagemRapida = async () => {
+      const formData = new FormData()
+      formData.append('key', mensagemRapida.key)
+      formData.append('message', mensagemRapida.message)
+
+      if (mensagemRapida.medias) {
+        mensagemRapida.medias.forEach(file => {
           formData.append('medias', file instanceof File ? file : file)
         })
       }
 
-      this.loading = true
-      console.log('Mensagem ID:', this.mensagemRapida.id)
+      loading.value = true
+      console.log('Mensagem ID:', mensagemRapida.id)
 
       try {
-        if (this.mensagemRapida.id) {
-          const { data } = await AlterarMensagemRapida(this.mensagemRapida.id, formData)
-          this.$emit('mensagemRapida:editada', { ...this.mensagemRapida, ...data })
-          this.$q.notify({
+        if (mensagemRapida.id) {
+          const { data } = await AlterarMensagemRapida(mensagemRapida.id, formData)
+          emit('mensagem-rapida-editada', { ...mensagemRapida, ...data })
+          $q.notify({
             type: 'info',
             progress: true,
             position: 'top',
@@ -326,8 +359,8 @@ export default {
           })
         } else {
           const { data } = await CriarMensagemRapida(formData)
-          this.$emit('mensagemRapida:criada', data)
-          this.$q.notify({
+          emit('mensagem-rapida-criada', data)
+          $q.notify({
             type: 'positive',
             progress: true,
             position: 'top',
@@ -339,18 +372,40 @@ export default {
             }]
           })
         }
-        this.fecharModal()
+        fecharModal()
       } catch (error) {
         console.error(error)
-        this.$q.notify({
+        $q.notify({
           type: 'negative',
           message: 'Erro ao salvar a mensagem.'
         })
       }
-      this.loading = false
+      loading.value = false
+    }
+
+    return {
+      inputEnvioMensagem,
+      mensagemRapida,
+      confirmDialog,
+      loading,
+      mediaToDelete,
+      indexToDelete,
+      arquivoCarregado,
+      variaveis,
+      onInsertSelectEmoji,
+      inserirVariavel,
+      onFileAdded,
+      abrirMedia,
+      confirmarExclusao,
+      excluirMedia,
+      isImage,
+      getMediaUrl,
+      fecharModal,
+      abrirModal,
+      handleMensagemRapida
     }
   }
-}
+})
 </script>
 
 <style scoped>

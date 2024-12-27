@@ -1,13 +1,11 @@
 <template>
   <div :id="`pagePrint-${id}`">
-
     <body id="pageInit">
       <div class="marginsPage">
         <div class="page-header">
           <div class="row">
             <div class="column left">
               <div class="container-header">
-                <!-- <div class="row text-left negrita h3">{{dadosUnidadeNegocioSelecionada.st_nome_unidade}}</div> -->
                 <div
                   class="row text-center"
                   style="font-weight: bold; font-size: 18px;"
@@ -29,33 +27,15 @@
                 >
               </div>
             </div>
-
-            <!-- <div class="column right column-rigth-header">
-              <div style="background: black; margin-top: -4px; width: 110px; height: 80px;">
-                <img
-                  class="logo"
-                  src="https://agenciabrave.com.br/wp-content/uploads/2016/03/logomarca-clinica.jpg"
-                  alt="logo"
-                  width="110"
-                  height="80"
-                >
-                <div class="row text-center h3">&nbsp;</div>
-              </div>
-            </div> -->
           </div>
         </div>
 
         <div class="page-footer">
           <div style="text-align: center">
-            <!-- <hr style="width: 40%; margin-right: 2cm !important;"> -->
-            <!-- <p style="margin-top: -10px; margin-right: 2cm !important;">{{dadosUsuario.st_nome_profissional}}</p>
-            <p style="margin-top: -15px; margin-right: 2cm !important;  padding: none;">{{dadosUsuario.cd_conselho}} {{dadosUsuario.nr_conselho}}</p> -->
           </div>
-
         </div>
 
         <table>
-
           <thead>
             <tr>
               <td>
@@ -65,17 +45,6 @@
           </thead>
 
           <tbody id="tableReport">
-            <!-- <tr>
-              <td>
-                <div class="page word-wrap">
-                  <div
-                    style="word-wrap: normal !important; white-space: normal !important; "
-                    class="word-wrap customWrap"
-                    v-html="corpo"
-                  ></div>
-                </div>
-              </td>
-            </tr> -->
             <slot name="body"></slot>
           </tbody>
 
@@ -87,14 +56,17 @@
             </tr>
           </tfoot>
           <div id="footerAppendFiltros"></div>
-
         </table>
       </div>
     </body>
-
   </div>
 </template>
+
 <script>
+import { defineComponent, ref, onBeforeMount, onBeforeUnmount, watch } from 'vue'
+import { Printd } from 'printd'
+import { format } from 'date-fns'
+
 const cssText = `
   .marginsPage {
     margin-left: 1cm !important;
@@ -102,11 +74,9 @@ const cssText = `
   }
   .page-header {
     height: 120px !important;
-    // margin-left: 0.5cm !important;
   }
   .page-header-space {
     height: 90px !important;
-    // margin-left: 0.5cm !important;
   }
   .page-header {
     position: fixed !important;
@@ -188,9 +158,7 @@ const cssText = `
       overflow-wrap: break-word;
       word-wrap: break-word;
       -ms-word-break: break-all;
-      /* This is the dangerous one in WebKit, as it breaks things wherever */
       word-break: break-all;
-      /* Instead use this non-standard one: */
       word-break: break-word;
     }
 
@@ -217,7 +185,6 @@ const cssText = `
       margin: 0px !important;
       left: 0px;
       width: 297mm;
-      // retirar 35px do footer
       height: calc(209mm - 35px); 
     }
     thead {
@@ -236,10 +203,9 @@ const cssText = `
     }
   }
 `
-import { Printd } from 'printd'
-import { format } from 'date-fns'
-export default {
-  name: 'ccPrintModel',
+
+export default defineComponent({
+  name: 'CcPrintModel',
   props: {
     imprimirRelatorio: {
       type: Boolean,
@@ -249,59 +215,70 @@ export default {
       type: String,
       default: '<p style="line-height: 0.1cm; word-wrap: normal !important; white-space: normal !important;">'
     },
-    id: [String, Number],
-    title: String,
-    subTitle: { type: String, default: '' }
-  },
-  data () {
-    return {
-      abrirModal: false,
-      dataImpressao: format(new Date(), 'dd/MM/yyyy HH:mm:ss')
-    }
-  },
-  computed: {
-    conteudoTexto () {
-      const data = this.corpo
-      // data = data.replace(/<p>/g, this.styleP)
-      return data
-    }
-  },
-  watch: {
-    imprimirRelatorio (v) {
-      this.print()
-    }
-  },
-  beforeMount () {
-    this.$nextTick(function () {
-      window.addEventListener('afterprint', this.fecharModal)
-    })
-  },
-  beforeDestroy () {
-    window.removeEventListener('afterprint', this.fecharModal)
-    this.$emit('update:imprimirRelatorio', false)
-  },
-  methods: {
-    print () {
-      this.d = new Printd()
-      const { contentWindow } = this.d.getIFrame() //eslint-disable-line
-      const elemento = `#pagePrint-${this.id}`
-      this.d.print(document.querySelector(elemento), [cssText, this.styleP])
+    id: {
+      type: [String, Number],
+      required: true
     },
-    printNomal () {
+    title: {
+      type: String,
+      required: true
+    },
+    subTitle: {
+      type: String,
+      default: ''
+    }
+  },
+  emits: ['update:imprimirRelatorio'],
+  setup(props, { emit }) {
+    const abrirModal = ref(false)
+    const dataImpressao = ref(format(new Date(), 'dd/MM/yyyy HH:mm:ss'))
+    let d = null
+
+    const print = () => {
+      d = new Printd()
+      const elemento = `#pagePrint-${props.id}`
+      d.print(document.querySelector(elemento), [cssText, props.styleP])
+    }
+
+    const printNomal = () => {
       setTimeout(() => {
         window.print()
       }, 300)
-    },
-    fecharModal () {
-      this.abrirModal = false
-      this.$emit('update:imprimirRelatorio', false)
+    }
+
+    const fecharModal = () => {
+      abrirModal.value = false
+      emit('update:imprimirRelatorio', false)
+    }
+
+    watch(() => props.imprimirRelatorio, newVal => {
+      if (newVal) {
+        print()
+      }
+    })
+
+    onBeforeMount(() => {
+      window.addEventListener('afterprint', fecharModal)
+    })
+
+    onBeforeUnmount(() => {
+      window.removeEventListener('afterprint', fecharModal)
+      emit('update:imprimirRelatorio', false)
+    })
+
+    return {
+      abrirModal,
+      dataImpressao,
+      print,
+      printNomal,
+      fecharModal
     }
   }
-}
+})
 </script>
+
 <style lang="scss" scoped>
 #pageInit {
-  // margin: 0px;
   display: none;
 }
 </style>

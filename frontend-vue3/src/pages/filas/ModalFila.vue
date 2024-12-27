@@ -1,7 +1,7 @@
 <template>
   <q-dialog
     persistent
-    :value="modalFila"
+    :modelValue="modalFila"
     @hide="fecharModal"
     @show="abrirModal"
   >
@@ -44,12 +44,14 @@
       </q-card-actions>
     </q-card>
   </q-dialog>
-
 </template>
 
 <script>
+import { defineComponent, reactive, ref } from 'vue'
+import { useQuasar } from 'quasar'
 import { CriarFila, AlterarFila } from 'src/service/filas'
-export default {
+
+export default defineComponent({
   name: 'ModalFila',
   props: {
     modalFila: {
@@ -58,47 +60,64 @@ export default {
     },
     filaEdicao: {
       type: Object,
-      default: () => {
-        return { id: null }
-      }
+      default: () => ({ id: null })
     }
   },
-  data () {
-    return {
-      fila: {
+  emits: ['update:modalFila', 'update:filaEdicao', 'modal-fila-editada', 'modal-fila-criada'],
+  setup(props, { emit }) {
+    const $q = useQuasar()
+    const loading = ref(false)
+
+    const fila = reactive({
+      id: null,
+      queue: null,
+      isActive: true
+    })
+
+    const resetarFila = () => {
+      Object.assign(fila, {
         id: null,
         queue: null,
         isActive: true
-      }
+      })
     }
-  },
-  methods: {
-    resetarFila () {
-      this.fila = {
-        id: null,
-        queue: null,
-        isActive: true
-      }
-    },
-    fecharModal () {
-      this.resetarFila()
-      this.$emit('update:filaEdicao', { id: null })
-      this.$emit('update:modalFila', false)
-    },
-    abrirModal () {
-      if (this.filaEdicao.id) {
-        this.fila = { ...this.filaEdicao }
+
+    const fecharModal = () => {
+      resetarFila()
+      emit('update:filaEdicao', { id: null })
+      emit('update:modalFila', false)
+    }
+
+    const abrirModal = () => {
+      if (props.filaEdicao.id) {
+        Object.assign(fila, props.filaEdicao)
       } else {
-        this.resetarFila()
+        resetarFila()
       }
-    },
-    async handleFila () {
+    }
+
+    const notificarErro = (message, error) => {
+      console.error(error)
+      $q.notify({
+        type: 'negative',
+        progress: true,
+        position: 'top',
+        message,
+        actions: [{
+          icon: 'close',
+          round: true,
+          color: 'white'
+        }]
+      })
+    }
+
+    const handleFila = async () => {
       try {
-        this.loading = true
-        if (this.fila.id) {
-          const { data } = await AlterarFila(this.fila)
-          this.$emit('modal-fila:editada', data)
-          this.$q.notify({
+        loading.value = true
+        if (fila.id) {
+          const { data } = await AlterarFila(fila)
+          emit('modal-fila-editada', data)
+          $q.notify({
             type: 'info',
             progress: true,
             position: 'top',
@@ -111,9 +130,9 @@ export default {
             }]
           })
         } else {
-          const { data } = await CriarFila(this.fila)
-          this.$emit('modal-fila:criada', data)
-          this.$q.notify({
+          const { data } = await CriarFila(fila)
+          emit('modal-fila-criada', data)
+          $q.notify({
             type: 'positive',
             progress: true,
             position: 'top',
@@ -125,16 +144,22 @@ export default {
             }]
           })
         }
-        this.loading = false
-        this.fecharModal()
+        loading.value = false
+        fecharModal()
       } catch (error) {
-        console.error(error)
-        this.$notificarErro('Ocorreu um erro!', error)
+        notificarErro('Ocorreu um erro!', error)
       }
     }
-  }
 
-}
+    return {
+      fila,
+      loading,
+      fecharModal,
+      abrirModal,
+      handleFila
+    }
+  }
+})
 </script>
 
 <style lang="scss" scoped>

@@ -15,16 +15,16 @@
             <c-input
               outlined
               v-model.trim="usuario.name"
-              :validator="$v.usuario.name"
-              @blur="$v.usuario.name.$touch"
+              :validator="v$.usuario.name"
+              @blur="v$.usuario.name.$touch"
               label="Nome"
             />
           </div>
           <div class="col-12">
             <c-input
               outlined
-              :validator="$v.usuario.email"
-              @blur="$v.usuario.email.$touch"
+              :validator="v$.usuario.email"
+              @blur="v$.usuario.email.$touch"
               v-model.trim="usuario.email"
               label="E-mail"
             />
@@ -35,8 +35,8 @@
             <c-input
               outlined
               v-model="usuario.password"
-              :validator="$v.usuario.password"
-              @blur="$v.usuario.password.$touch"
+              :validator="v$.usuario.password"
+              @blur="v$.usuario.password.$touch"
               :type="isPwd ? 'password' : 'text'"
               label="Senha"
             >
@@ -84,157 +84,167 @@
       </q-card-actions>
     </q-card>
   </q-dialog>
-
 </template>
 
-<script>
-import { required, email, minLength, maxLength } from 'vuelidate/lib/validators'
+<script setup>
+import { ref, reactive, computed } from 'vue'
+import { useVuelidate } from '@vuelidate/core'
+import { required, email, minLength, maxLength } from '@vuelidate/validators'
 import { CriarUsuario, UpdateUsuarios } from 'src/service/user'
 import { Notify } from 'quasar'
-export default {
-  name: 'ModalUsuario',
-  props: {
-    modalUsuario: {
-      type: Boolean,
-      default: false
-    },
-    isProfile: {
-      type: Boolean,
-      default: false
-    },
-    usuarioEdicao: {
-      type: Object,
-      default: () => { return { id: null } }
-    }
+import { useStore } from 'vuex'
+
+const props = defineProps({
+  modalUsuario: {
+    type: Boolean,
+    default: false
   },
-  data () {
+  isProfile: {
+    type: Boolean,
+    default: false
+  },
+  usuarioEdicao: {
+    type: Object,
+    default: () => ({ id: null })
+  }
+})
+
+const emit = defineEmits(['update:usuarioEdicao', 'update:modalUsuario', 'modal-usuario-usuario-editado', 'modal-usuario-usuario-criado'])
+
+const store = useStore()
+const isPwd = ref(false)
+const optionsProfile = [
+  { value: 'user', label: 'Usuário' },
+  { value: 'admin', label: 'Administrador' }
+]
+
+const usuario = reactive({
+  name: '',
+  email: '',
+  password: '',
+  profile: 'user'
+})
+
+const rules = computed(() => {
+  const baseRules = {
+    name: { required, minLength: minLength(3), maxLength: maxLength(50) },
+    email: { required, email },
+    profile: { required },
+    password: {}
+  }
+
+  if (!usuario.id) {
     return {
-      isPwd: false,
-      optionsProfile: [
-        { value: 'user', label: 'Usuário' },
-        { value: 'admin', label: 'Administrador' }
-      ],
       usuario: {
-        name: '',
-        email: '',
-        password: '',
-        profile: 'user'
-      }
-    }
-  },
-  validations () {
-    let usuario = {
-      name: { required, minLength: minLength(3), maxLength: maxLength(50) },
-      email: { required, email },
-      profile: { required },
-      password: {}
-    }
-    if (!this.usuario.id) {
-      usuario = {
-        ...usuario,
+        ...baseRules,
         password: { required, minLength: minLength(6), maxLength: maxLength(50) }
       }
     }
-    return { usuario }
-  },
-  methods: {
-    abrirModal () {
-      if (this.usuarioEdicao.id) {
-        this.usuario = { ...this.usuarioEdicao }
-      }
-      if (this.usuarioEdicao.userId) {
-        this.usuario = {
-          ...this.usuarioEdicao,
-          id: this.usuarioEdicao.userId,
-          name: this.usuarioEdicao.username,
-          profile: this.usuarioEdicao.profile
-        }
-      }
-    },
-    fecharModal () {
-      if (!this.isProfile) {
-        this.$emit('update:usuarioEdicao', {})
-      }
-      this.$emit('update:modalUsuario', false)
-      this.usuario = {
-        name: '',
-        email: '',
-        password: '',
-        profile: 'user'
-      }
-      this.isPwd = false
-      this.$v.usuario.$reset()
-    },
-    async handleUsuario () {
-      this.$v.usuario.$touch()
-      if (this.$v.usuario.$error) {
-        return this.$q.notify({
-          type: 'warning',
-          progress: true,
-          position: 'top',
-          message: 'Ops! Verifique os erros...',
-          actions: [{
-            icon: 'close',
-            round: true,
-            color: 'white'
-          }]
-        })
+  }
+
+  return { usuario: baseRules }
+})
+
+const v$ = useVuelidate(rules, { usuario })
+
+const abrirModal = () => {
+  if (props.usuarioEdicao.id) {
+    Object.assign(usuario, props.usuarioEdicao)
+  }
+  if (props.usuarioEdicao.userId) {
+    Object.assign(usuario, {
+      ...props.usuarioEdicao,
+      id: props.usuarioEdicao.userId,
+      name: props.usuarioEdicao.username,
+      profile: props.usuarioEdicao.profile
+    })
+  }
+}
+
+const fecharModal = () => {
+  if (!props.isProfile) {
+    emit('update:usuarioEdicao', {})
+  }
+  emit('update:modalUsuario', false)
+  Object.assign(usuario, {
+    name: '',
+    email: '',
+    password: '',
+    profile: 'user'
+  })
+  isPwd.value = false
+  v$.value.$reset()
+}
+
+const handleUsuario = async () => {
+  v$.value.$touch()
+  if (v$.value.$error) {
+    return Notify.create({
+      type: 'warning',
+      progress: true,
+      position: 'top',
+      message: 'Ops! Verifique os erros...',
+      actions: [{
+        icon: 'close',
+        round: true,
+        color: 'white'
+      }]
+    })
+  }
+
+  try {
+    if (usuario.id) {
+      const {
+        email, id, name, tenantId, password
+      } = usuario
+
+      const params = { email, id, name, tenantId, password }
+
+      if (store.state.user.isAdmin) {
+        params.profile = usuario.profile
       }
 
-      try {
-        if (this.usuario.id) {
-          const {
-            email, id, name, tenantId, password
-          } = this.usuario
-
-          const params = { email, id, name, tenantId, password }
-
-          if (this.$store.state.user.isAdmin) {
-            params.profile = this.usuario.profile
-          }
-
-          const { data } = await UpdateUsuarios(this.usuario.id, params)
-          this.$emit('modalUsuario:usuario-editado', data)
-          this.$q.notify({
-            type: 'info',
-            progress: true,
-            position: 'top',
-            textColor: 'black',
-            message: 'Usuário editado!',
-            actions: [{
-              icon: 'close',
-              round: true,
-              color: 'white'
-            }]
-          })
-        } else {
-          const { data } = await CriarUsuario(this.usuario)
-          this.$emit('modalUsuario:usuario-criado', data)
-          this.$q.notify({
-            type: 'positive',
-            progress: true,
-            position: 'top',
-            message: 'Usuário criado!',
-            actions: [{
-              icon: 'close',
-              round: true,
-              color: 'white'
-            }]
-          })
-        }
-        this.$emit('update:modalUsuario', false)
-      } catch (error) {
-        console.error(error, error.data.error === 'ERR_USER_LIMIT_USER_CREATION')
-        if (error.data.error === 'ERR_USER_LIMIT_USER_CREATION') {
-          Notify.create({
-            type: 'negative',
-            message: 'Limite de usuario atingido.',
-            caption: 'ERR_USER_LIMIT_USER_CREATION',
-            position: 'top',
-            progress: true
-          })
-        }
-      }
+      const { data } = await UpdateUsuarios(usuario.id, params)
+      emit('modal-usuario-usuario-editado', data)
+      Notify.create({
+        type: 'info',
+        progress: true,
+        position: 'top',
+        textColor: 'black',
+        message: 'Usuário editado!',
+        actions: [{
+          icon: 'close',
+          round: true,
+          color: 'white'
+        }]
+      })
+    } else {
+      const { data } = await CriarUsuario(usuario)
+      emit('modal-usuario-usuario-criado', data)
+      Notify.create({
+        type: 'positive',
+        progress: true,
+        position: 'top',
+        message: 'Usuário criado!',
+        actions: [{
+          icon: 'close',
+          round: true,
+          color: 'white'
+        }]
+      })
+    }
+    emit('update:modalUsuario', false)
+  } catch (error) {
+    if (error.data?.error === 'ERR_USER_LIMIT_USER_CREATION') {
+      Notify.create({
+        type: 'negative',
+        message: 'Limite de usuario atingido.',
+        caption: 'ERR_USER_LIMIT_USER_CREATION',
+        position: 'top',
+        progress: true
+      })
+    } else {
+      console.error(error)
     }
   }
 }

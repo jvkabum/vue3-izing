@@ -15,9 +15,7 @@
             size="50px"
             class="q-mr-md"
             :name="whatsapp.type ? `img:${whatsapp.type}-logo.png` : 'mdi-alert'"
-          /> {{ whatsapp.id ? 'Editar' :
-              'Adicionar'
-            }}
+          /> {{ whatsapp.id ? 'Editar' : 'Adicionar' }}
           Canal
         </div>
       </q-card-section>
@@ -43,8 +41,8 @@
               label="Nome"
               dense
               v-model="whatsapp.name"
-              :validator="$v.whatsapp.name"
-              @blur="$v.whatsapp.name.$touch"
+              :validator="v$.whatsapp.name"
+              @blur="v$.whatsapp.name.$touch"
             />
           </div>
 
@@ -119,7 +117,6 @@
                         <q-tooltip>
                           Cancelar alteração de senha
                         </q-tooltip>
-
                       </q-btn>
                     </template>
                     <template v-slot:append>
@@ -132,7 +129,6 @@
                   </c-input>
                 </div>
               </fieldset>
-
             </div>
           </div>
         </div>
@@ -159,28 +155,28 @@
                 color="black"
                 style="margin-bottom: -120px; margin-right: -30px"
               >
-              <q-icon
-                size="1.5em"
-                name="mdi-emoticon-happy-outline"
-              />
-              <q-tooltip>
-                Emoji
-              </q-tooltip>
-              <q-menu
-                anchor="top right"
-                self="bottom middle"
-                :offset="[5, 40]"
-              >
-                <VEmojiPicker
-                  style="width: 40vw"
-                  :showSearch="false"
-                  :emojisByRow="20"
-                  labelSearch="Localizar..."
-                  lang="pt-BR"
-                  @select="onInsertSelectEmoji"
+                <q-icon
+                  size="1.5em"
+                  name="mdi-emoticon-happy-outline"
                 />
-              </q-menu>
-            </q-btn>
+                <q-tooltip>
+                  Emoji
+                </q-tooltip>
+                <q-menu
+                  anchor="top right"
+                  self="bottom middle"
+                  :offset="[5, 40]"
+                >
+                  <VEmojiPicker
+                    style="width: 40vw"
+                    :showSearch="false"
+                    :emojisByRow="20"
+                    labelSearch="Localizar..."
+                    lang="pt-BR"
+                    @select="onInsertSelectEmoji"
+                  />
+                </q-menu>
+              </q-btn>
               <q-btn
                 rounded
                 dense
@@ -238,195 +234,192 @@
   </q-dialog>
 </template>
 
-<script>
-import { required, minLength, maxLength } from 'vuelidate/lib/validators'
+<script setup>
+import { ref, reactive, computed, onUnmounted } from 'vue'
+import { useVuelidate } from '@vuelidate/core'
+import { required, minLength, maxLength } from '@vuelidate/validators'
 import { UpdateWhatsapp, CriarWhatsapp } from 'src/service/sessoesWhatsapp'
 import cInput from 'src/components/cInput.vue'
 import { copyToClipboard, Notify } from 'quasar'
 import { VEmojiPicker } from 'v-emoji-picker'
 
-export default {
-  components: { cInput, VEmojiPicker },
-  name: 'ModalWhatsapp',
-  props: {
-    modalWhatsapp: {
-      type: Boolean,
-      default: false
-    },
-    whatsAppId: {
-      type: Number,
-      default: null
-    },
-    whatsAppEdit: {
-      type: Object,
-      default: () => { }
-    }
+const props = defineProps({
+  modalWhatsapp: {
+    type: Boolean,
+    default: false
   },
-  data () {
-    return {
-      isPwd: true,
-      isEdit: false,
-      whatsapp: {
-        name: '',
-        isDefault: false,
-        tokenTelegram: '',
-        instagramUser: '',
-        instagramKey: '',
-        tokenAPI: '',
-        type: 'whatsapp',
-        farewellMessage: ''
-      },
-      optionsWhatsappsTypes: [
-        { label: 'Whatsapp', value: 'whatsapp' },
-        { label: 'Telegram', value: 'telegram' }
-        // { label: 'Instagram', value: 'instagram' }
-      ],
-      variaveis: [
-        { label: 'Nome', value: '{{name}}' },
-        { label: 'Saudação', value: '{{greeting}}' },
-        { label: 'Protocolo', value: '{{protocol}}' }
-      ]
-    }
+  whatsAppId: {
+    type: Number,
+    default: null
   },
-  validations: {
-    whatsapp: {
-      name: { required, minLength: minLength(3), maxLength: maxLength(50) },
-      isDefault: {}
-    }
-  },
-  computed: {
-    cBaseUrlIntegração () {
-      return this.whatsapp.UrlMessengerWebHook
-    }
-  },
-  methods: {
-    onInsertSelectEmoji (emoji) {
-      const self = this
-      var tArea = this.$refs.inputFarewellMessage
-      // get cursor's position:
-      var startPos = tArea.selectionStart,
-        endPos = tArea.selectionEnd,
-        cursorPos = startPos,
-        tmpStr = tArea.value
-      // filter:
-      if (!emoji.data) {
-        return
-      }
-      // insert:
-      self.txtContent = this.whatsapp.farewellMessage
-      self.txtContent = tmpStr.substring(0, startPos) + emoji.data + tmpStr.substring(endPos, tmpStr.length)
-      this.whatsapp.farewellMessage = self.txtContent
-      // move cursor:
-      setTimeout(() => {
-        tArea.selectionStart = tArea.selectionEnd = cursorPos + emoji.data.length
-      }, 10)
-    },
-    copy (text) {
-      copyToClipboard(text)
-        .then(this.$notificarSucesso('URL de integração copiada!'))
-        .catch()
-    },
+  whatsAppEdit: {
+    type: Object,
+    default: () => ({})
+  }
+})
 
-    onInsertSelectVariable (variable) {
-      const self = this
-      var tArea = this.$refs.inputFarewellMessage
-      // get cursor's position:
-      var startPos = tArea.selectionStart,
-        endPos = tArea.selectionEnd,
-        cursorPos = startPos,
-        tmpStr = tArea.value
-      // filter:
-      if (!variable) {
-        return
-      }
-      // insert:
-      self.txtContent = this.whatsapp.farewellMessage
-      self.txtContent = tmpStr.substring(0, startPos) + variable + tmpStr.substring(endPos, tmpStr.length)
-      this.whatsapp.farewellMessage = self.txtContent
-      // move cursor:
-      setTimeout(() => {
-        tArea.selectionStart = tArea.selectionEnd = cursorPos + 1
-      }, 10)
-    },
+const emit = defineEmits(['update:whatsAppEdit', 'update:modalWhatsapp', 'recarregar-lista'])
 
-    fecharModal () {
-      this.whatsapp = {
-        name: '',
-        isDefault: false
-      }
-      this.$emit('update:whatsAppEdit', {})
-      this.$emit('update:modalWhatsapp', false)
-    },
-    abrirModal () {
-      if (this.whatsAppEdit.id) {
-        this.whatsapp = { ...this.whatsAppEdit }
-      }
-    },
-    async handleSaveWhatsApp (whatsapp) {
-      this.$v.whatsapp.$touch()
-      if (this.$v.whatsapp.$error) {
-        return this.$q.notify({
-          type: 'warning',
-          progress: true,
-          position: 'top',
-          message: 'Ops! Verifique os erros...',
-          actions: [{
-            icon: 'close',
-            round: true,
-            color: 'white'
-          }]
-        })
-      }
-      try {
-        if (this.whatsAppEdit.id) {
-          await UpdateWhatsapp(this.whatsAppEdit.id, whatsapp)
-        } else {
-          await CriarWhatsapp(whatsapp)
-        }
-        this.$q.notify({
-          type: 'positive',
-          progress: true,
-          position: 'top',
-          message: `Whatsapp ${this.whatsAppEdit.id ? 'editado' : 'criado'} com sucesso!`,
-          actions: [{
-            icon: 'close',
-            round: true,
-            color: 'white'
-          }]
-        })
-        this.$emit('recarregar-lista')
-        this.fecharModal()
-      } catch (error) {
-        console.error(error, error.data.error === 'ERR_NO_PERMISSION_CONNECTIONS_LIMIT')
-        if (error.data.error === 'ERR_NO_PERMISSION_CONNECTIONS_LIMIT') {
-          Notify.create({
-            type: 'negative',
-            message: 'Limite de conexões atingida.',
-            caption: 'ERR_NO_PERMISSION_CONNECTIONS_LIMIT',
-            position: 'top',
-            progress: true
-          })
-        } else {
-          console.error(error)
-          return this.$q.notify({
-            type: 'error',
-            progress: true,
-            position: 'top',
-            message: 'Ops! Verifique os erros... O nome da conexão não pode existir na plataforma, é um identificador único.',
-            actions: [{
-              icon: 'close',
-              round: true,
-              color: 'white'
-            }]
-          })
-        }
-      }
-    }
-  },
-  destroyed () {
-    this.$v.whatsapp.$reset()
+const isPwd = ref(true)
+const isEdit = ref(false)
+const inputFarewellMessage = ref(null)
+const txtContent = ref('')
+
+const whatsapp = reactive({
+  name: '',
+  isDefault: false,
+  tokenTelegram: '',
+  instagramUser: '',
+  instagramKey: '',
+  tokenAPI: '',
+  type: 'whatsapp',
+  farewellMessage: ''
+})
+
+const rules = {
+  whatsapp: {
+    name: { required, minLength: minLength(3), maxLength: maxLength(50) },
+    isDefault: {}
   }
 }
+
+const v$ = useVuelidate(rules, { whatsapp })
+
+const optionsWhatsappsTypes = [
+  { label: 'Whatsapp', value: 'whatsapp' },
+  { label: 'Telegram', value: 'telegram' }
+]
+
+const variaveis = [
+  { label: 'Nome', value: '{{name}}' },
+  { label: 'Saudação', value: '{{greeting}}' },
+  { label: 'Protocolo', value: '{{protocol}}' }
+]
+
+const onInsertSelectEmoji = (emoji) => {
+  if (!emoji.data) return
+  
+  const tArea = inputFarewellMessage.value
+  const startPos = tArea.selectionStart
+  const endPos = tArea.selectionEnd
+  const tmpStr = tArea.value
+
+  txtContent.value = whatsapp.farewellMessage
+  txtContent.value = tmpStr.substring(0, startPos) + emoji.data + tmpStr.substring(endPos, tmpStr.length)
+  whatsapp.farewellMessage = txtContent.value
+
+  setTimeout(() => {
+    tArea.selectionStart = tArea.selectionEnd = startPos + emoji.data.length
+  }, 10)
+}
+
+const onInsertSelectVariable = (variable) => {
+  if (!variable) return
+  
+  const tArea = inputFarewellMessage.value
+  const startPos = tArea.selectionStart
+  const endPos = tArea.selectionEnd
+  const tmpStr = tArea.value
+
+  txtContent.value = whatsapp.farewellMessage
+  txtContent.value = tmpStr.substring(0, startPos) + variable + tmpStr.substring(endPos, tmpStr.length)
+  whatsapp.farewellMessage = txtContent.value
+
+  setTimeout(() => {
+    tArea.selectionStart = tArea.selectionEnd = startPos + 1
+  }, 10)
+}
+
+const copy = (text) => {
+  copyToClipboard(text)
+    .then(() => Notify.create({
+      type: 'positive',
+      message: 'URL de integração copiada!'
+    }))
+    .catch(console.error)
+}
+
+const fecharModal = () => {
+  Object.assign(whatsapp, {
+    name: '',
+    isDefault: false
+  })
+  emit('update:whatsAppEdit', {})
+  emit('update:modalWhatsapp', false)
+}
+
+const abrirModal = () => {
+  if (props.whatsAppEdit.id) {
+    Object.assign(whatsapp, props.whatsAppEdit)
+  }
+}
+
+const handleSaveWhatsApp = async () => {
+  v$.value.$touch()
+  if (v$.value.$error) {
+    return Notify.create({
+      type: 'warning',
+      progress: true,
+      position: 'top',
+      message: 'Ops! Verifique os erros...',
+      actions: [{
+        icon: 'close',
+        round: true,
+        color: 'white'
+      }]
+    })
+  }
+
+  try {
+    if (props.whatsAppEdit.id) {
+      await UpdateWhatsapp(props.whatsAppEdit.id, whatsapp)
+    } else {
+      await CriarWhatsapp(whatsapp)
+    }
+
+    Notify.create({
+      type: 'positive',
+      progress: true,
+      position: 'top',
+      message: `Whatsapp ${props.whatsAppEdit.id ? 'editado' : 'criado'} com sucesso!`,
+      actions: [{
+        icon: 'close',
+        round: true,
+        color: 'white'
+      }]
+    })
+
+    emit('recarregar-lista')
+    fecharModal()
+  } catch (error) {
+    if (error.data?.error === 'ERR_NO_PERMISSION_CONNECTIONS_LIMIT') {
+      Notify.create({
+        type: 'negative',
+        message: 'Limite de conexões atingida.',
+        caption: 'ERR_NO_PERMISSION_CONNECTIONS_LIMIT',
+        position: 'top',
+        progress: true
+      })
+    } else {
+      console.error(error)
+      Notify.create({
+        type: 'negative',
+        progress: true,
+        position: 'top',
+        message: 'Ops! Verifique os erros... O nome da conexão não pode existir na plataforma, é um identificador único.',
+        actions: [{
+          icon: 'close',
+          round: true,
+          color: 'white'
+        }]
+      })
+    }
+  }
+}
+
+onUnmounted(() => {
+  v$.value.$reset()
+})
 </script>
 
 <style lang="scss" scoped>
