@@ -1,3 +1,93 @@
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import { Base64 } from 'js-base64'
+import { useQuasar } from 'quasar'
+import VueEasyLightbox from 'vue-easy-lightbox'
+import { format } from 'date-fns'
+import type { Message, Ticket } from '../../types/message.types'
+
+// Props
+const props = defineProps<{
+  mensagem: Message
+  size?: string | number
+  isLineDate?: boolean
+  replyingMessage?: Message
+  ticketFocado?: Ticket
+}>()
+
+// Composables
+const $q = useQuasar()
+
+// Estado
+const isLightboxVisible = ref(false)
+
+// Composable para mensagem
+const useMensagem = () => {
+  const bgColor = computed(() => 
+    props.mensagem.fromMe ? 'grey-2' : $q.dark.isActive ? 'blue-2' : 'blue-1'
+  )
+
+  const groupLabel = computed(() => 
+    props.ticketFocado?.isGroup ? props.mensagem.contact?.name ?? '' : ''
+  )
+
+  const vcardUrl = computed(() => 
+    `data:text/x-vcard;charset=utf-8;base64,${Base64.encode(props.mensagem.body)}`
+  )
+
+  const formattedDate = computed(() => 
+    format(new Date(props.mensagem.updatedAt), 'dd/MM/yyyy')
+  )
+
+  const formattedMessageBody = computed(() => props.mensagem.body)
+
+  const isFileTypePDF = (url?: string) => 
+    url?.split('.').pop()?.toLowerCase() === 'pdf' || false
+
+  return {
+    bgColor,
+    groupLabel,
+    vcardUrl,
+    formattedDate,
+    formattedMessageBody,
+    isFileTypePDF
+  }
+}
+
+// Composable para lightbox
+const useLightbox = () => {
+  const showLightbox = () => {
+    isLightboxVisible.value = true
+  }
+
+  const hideLightbox = () => {
+    isLightboxVisible.value = false
+  }
+
+  return {
+    isLightboxVisible,
+    showLightbox,
+    hideLightbox
+  }
+}
+
+// Extrair composables
+const { 
+  bgColor,
+  groupLabel,
+  vcardUrl,
+  formattedDate,
+  formattedMessageBody,
+  isFileTypePDF
+} = useMensagem()
+
+const {
+  isLightboxVisible: lightboxVisible,
+  showLightbox,
+  hideLightbox
+} = useLightbox()
+</script>
+
 <template>
   <q-item
     clickable
@@ -6,51 +96,51 @@
     dense
   >
     <q-chat-message
-      :key="mensagem.id"
-      :sent="mensagem.fromMe"
+      :key="props.mensagem.id"
+      :sent="props.mensagem.fromMe"
       class="text-weight-medium fit q-ma-none"
       id="chat-message-resp"
       style="min-width: 100px; max-width: 350px"
-      :bg-color="mensagem.fromMe ? 'grey-2' : $q.dark.isActive ? 'blue-2' : 'blue-1' "
+      :bg-color="bgColor"
     >
-      <!-- @click="focarElemento(mensagem)" -->
-
-      <!-- :bg-color="mensagem.fromMe ? '' : 'green-3' " -->
-      <!-- :bg-color="mensagem.fromMe ? 'grey-2' : 'secondary' " -->
       <div
         class="full-width"
-        :style="mensagem.isDeleted ? 'color: rgba(0, 0, 0, 0.36) !important;' : ''"
+        :style="props.mensagem.isDeleted ? 'color: rgba(0, 0, 0, 0.36) !important;' : ''"
       >
         <div
-          v-if="mensagem.isDeleted"
+          v-if="props.mensagem.isDeleted"
           class="text-italic"
-        > Mensagem apagada em {{ formatarData(mensagem.updatedAt, 'dd/MM/yyyy') }}.</div>
-        <div
-          v-if="isGroupLabel(mensagem)"
-          class="q-mb-sm"
-          style="display: flex; color: rgb(59 23 251); fontWeight: 500;"
         >
-          {{ isGroupLabel(mensagem) }}
+          Mensagem apagada em {{ formattedDate }}.
         </div>
         <div
-          v-if="!isGroupLabel(mensagem) && !mensagem.fromMe"
+          v-if="groupLabel"
           class="q-mb-sm"
-          style="display: flex; color: rgb(59 23 251); fontWeight: 500;"
+          style="display: flex; color: rgb(59 23 251); font-weight: 500;"
         >
-          {{ mensagem.contact && mensagem.contact.name }}
+          {{ groupLabel }}
         </div>
-        <template v-if="mensagem.mediaType === 'audio'">
-          <div style="width: 200px; heigth: 300px">
+        <div
+          v-if="!groupLabel && !props.mensagem.fromMe"
+          class="q-mb-sm"
+          style="display: flex; color: rgb(59 23 251); font-weight: 500;"
+        >
+          {{ props.mensagem.contact?.name }}
+        </div>
+
+        <template v-if="props.mensagem.mediaType === 'audio'">
+          <div style="width: 200px; height: 300px">
             <audio
               style="max-width: 200px;"
               class="full-width"
               controls
             >
-              <source :src="mensagem.mediaUrl" type="audio/mp3" />
+              <source :src="props.mensagem.mediaUrl" type="audio/mp3">
             </audio>
           </div>
         </template>
-        <template v-if="mensagem.mediaType === 'vcard'">
+
+        <template v-if="props.mensagem.mediaType === 'vcard'">
           <q-btn
             type="a"
             color="black"
@@ -58,16 +148,16 @@
             dense
             class="q-px-sm text-center"
             download="vCard"
-            :href="`data:text/x-vcard;charset=utf-8;base64,${returnCardContato(mensagem.body)}`"
+            :href="vcardUrl"
           >
             Download Contato
           </q-btn>
         </template>
-        <template v-if="mensagem.mediaType === 'image'">
-          <!-- @click="buscarImageCors(mensagem.mediaUrl)" -->
+
+        <template v-if="props.mensagem.mediaType === 'image'">
           <q-img
-            @click="urlMedia=mensagem.mediaUrl; abrirModalImagem=true"
-            :src="mensagem.mediaUrl"
+            @click="showLightbox"
+            :src="props.mensagem.mediaUrl"
             spinner-color="primary"
             height="60px"
             width="130px"
@@ -75,29 +165,23 @@
           />
           <VueEasyLightbox
             moveDisabled
-            :visible="abrirModalImagem"
-            :imgs="urlMedia"
-            :index="mensagem.ticketId || 1"
-            @hide="abrirModalImagem = false"
+            :visible="lightboxVisible"
+            :imgs="props.mensagem.mediaUrl"
+            :index="props.mensagem.ticketId || 1"
+            @hide="hideLightbox"
           />
         </template>
-        <template v-if="mensagem.mediaType === 'video'">
+
+        <template v-if="props.mensagem.mediaType === 'video'">
           <video
-            :src="mensagem.mediaUrl"
+            :src="props.mensagem.mediaUrl"
             controls
-            style="objectFit: cover;
-                  width: 130px;
-                  height: 60px;
-                  borderTopLeftRadius: 8px;
-                  borderTopRightRadius: 8px;
-                  borderBottomLeftRadius: 8px;
-                  borderBottomRightRadius: 8px;
-                "
-            >
-          </video>
+            style="object-fit: cover; width: 130px; height: 60px; border-radius: 8px;"
+          />
         </template>
-        <template v-if="mensagem.mediaType === 'application'">
-          <div class="text-center ">
+
+        <template v-if="props.mensagem.mediaType === 'application'">
+          <div class="text-center">
             <q-btn
               type="a"
               color="grey-3"
@@ -106,131 +190,44 @@
               stack
               class="q-my-sm text-center text-black btn-rounded text-grey-9 ellipsis"
               download
-              :target="isPDF(mensagem.mediaUrl) ? '_blank' : ''"
-              :href="mensagem.mediaUrl"
+              :target="isFileTypePDF(props.mensagem.mediaUrl) ? '_blank' : ''"
+              :href="props.mensagem.mediaUrl"
             >
               <q-tooltip
-                v-if="mensagem.mediaUrl"
+                v-if="props.mensagem.mediaUrl"
                 content-class="bg-padrao text-grey-9 text-bold"
               >
-                Baixar: {{ mensagem.body }}
+                Baixar: {{ props.mensagem.body }}
               </q-tooltip>
-              <template slot>
+              <template #default>
                 <div
                   class="row items-center q-my-sm"
                   style="max-width: 180px"
                 >
                   <div class="ellipsis col-grow q-pr-sm">
-                    {{ farmatarMensagemWhatsapp(mensagem.body) }}
+                    {{ formattedMessageBody }}
                   </div>
                   <q-icon
                     class="col"
                     name="mdi-download"
                   />
                 </div>
-
               </template>
             </q-btn>
           </div>
-          <!-- <q-btn
-                type="a"
-                color="primary"
-                outline
-                dense
-                class="q-px-sm text-center"
-                target="_blank"
-                :href="`http://docs.google.com/gview?url=${mensagem.mediaUrl}&embedded=true`"
-              >
-                Visualizar
-              </q-btn> -->
         </template>
+
         <div
           v-linkified
-          v-if="!['vcard', 'application', 'audio', 'image', 'video' ].includes(mensagem.mediaType)"
-          :class="{'q-mt-sm': mensagem.mediaType !== 'chat'}"
+          v-if="!['vcard', 'application', 'audio', 'image', 'video'].includes(props.mensagem.mediaType)"
+          :class="{'q-mt-sm': props.mensagem.mediaType !== 'chat'}"
           class="q-message-container row items-end no-wrap ellipsis-3-lines"
-        >
-          <div v-html="farmatarMensagemWhatsapp(mensagem.body)">
-          </div>
-        </div>
+          v-html="formattedMessageBody"
+        />
       </div>
     </q-chat-message>
   </q-item>
-
 </template>
 
-<script>
-import { Base64 } from 'js-base64'
-
-import mixinCommon from './mixinCommon'
-import VueEasyLightbox from 'vue-easy-lightbox'
-
-export default {
-  name: 'MensagemChat',
-  mixins: [mixinCommon],
-  props: {
-    mensagem: {
-      type: Object,
-      default: () => { }
-    },
-    size: {
-      type: [String, Number],
-      default: '5'
-    },
-    isLineDate: {
-      type: Boolean,
-      default: true
-    },
-    replyingMessage: {
-      type: Object,
-      default: () => { }
-    }
-  },
-  data () {
-    return {
-      abrirModalImagem: false,
-      urlMedia: '',
-
-      ackIcons: { // Se ACK == 3 ou 4 entao color green
-        0: 'mdi-clock-outline',
-        1: 'mdi-check',
-        2: 'mdi-check-all',
-        3: 'mdi-check-all',
-        4: 'mdi-check-all'
-      }
-    }
-  },
-  components: {
-    VueEasyLightbox
-  },
-  methods: {
-    isPDF (url) {
-      if (!url) return false
-      const split = url.split('.')
-      const ext = split[split.length - 1]
-      return ext === 'pdf'
-    },
-    isGroupLabel (mensagem) {
-      try {
-        return this.ticketFocado.isGroup ? mensagem.contact.name : ''
-      } catch (error) {
-        return ''
-      }
-    },
-    returnCardContato (str) {
-      // return btoa(str)
-      return Base64.encode(str)
-    },
-    focarElemento (mensagem) {
-      this.$emit('mensagem-respondida:focar-mensagem', mensagem)
-    }
-  }
-}
-</script>
-
-<style lang="scss">
-// .q-message-text {
-//   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 1px rgba(0, 0, 0, 0.14),
-//     0 2px 1px -1px rgba(0, 0, 0, 0.12);
-// }
+<style lang="scss" scoped>
 </style>

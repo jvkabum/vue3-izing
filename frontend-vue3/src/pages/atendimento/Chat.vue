@@ -1,10 +1,10 @@
 <template>
   <div class="bg-white no-scroll hide-scrollbar overflow-hidden" :style="style">
     <InforCabecalhoChat
-      @updateTicket:resolver="atualizarStatusTicket('closed')"
-      @updateTicket:retornar="atualizarStatusTicket('pending')"
-      @updateTicket:reabrir="atualizarStatusTicket('open')"
-      @abrir:modalAgendamentoMensagem="modalAgendamentoMensagem = true"
+      @update-ticket-resolver="atualizarStatusTicket('closed')"
+      @update-ticket-retornar="atualizarStatusTicket('pending')"
+      @update-ticket-reabrir="atualizarStatusTicket('open')"
+      @abrir-modal-agendamento="modalAgendamentoMensagem = true"
     />
 
     <q-scroll-area
@@ -137,10 +137,9 @@
             >
               {{ replyingMessage.contact?.name }}
             </q-item-label>
-            <q-item-label
-              lines="4"
-              :innerHTML="formatWhatsAppMessage(replyingMessage.body)"
-            />
+            <div class="q-message-text">
+              {{ formatWhatsAppMessage(replyingMessage.body) }}
+            </div>
           </q-item-section>
           <q-btn
             @click="replyingMessage = null"
@@ -324,7 +323,7 @@ const { messages, selectedTicket, loading, hasMore } = storeToRefs(atendimentoSt
 // Composables
 const $q = useQuasar()
 const { notify } = useNotifications()
-const { updateTicketStatus } = useTicketStatus()
+const { atualizarStatusTicket } = useTicketStatus()
 const { formatWhatsAppMessage } = useMessageFormat()
 
 // Local State
@@ -348,7 +347,7 @@ const style = computed(() => ({
 }))
 
 const scrollAreaStyle = computed(() => {
-  const loadingHeight = 0 // loading.value ? 72 : 0
+  const loadingHeight = 0
   const totalHeight = inputHeight.value + loadingHeight
   return `min-height: calc(100vh - ${62 + totalHeight}px); height: calc(100vh - ${62 + totalHeight}px); width: 100%`
 })
@@ -394,10 +393,6 @@ function handleScroll(e) {
 
 function scrollToBottom() {
   document.getElementById('messageListStart').scrollIntoView()
-}
-
-function leaveChat() {
-  atendimentoStore.clearSelectedTicket()
 }
 
 function openForwardModal(message) {

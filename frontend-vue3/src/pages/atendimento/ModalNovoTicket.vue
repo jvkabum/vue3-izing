@@ -44,7 +44,6 @@
               label="Adicionar Contato"
               @click="modalContato = true"
             />
-
           </template>
           <template v-slot:option="scope">
             <q-item
@@ -53,7 +52,7 @@
               v-if="scope.opt.name"
             >
               <q-item-section>
-                <q-item-label> {{ scope.opt.name }}</q-item-label>
+                <q-item-label>{{ scope.opt.name }}</q-item-label>
                 <q-item-label caption>{{ scope.opt.number }}</q-item-label>
               </q-item-section>
             </q-item>
@@ -72,113 +71,121 @@
         />
         <q-btn
           label="Salvar"
-          class="q-px-md "
+          class="q-px-md"
           color="primary"
           @click="criarTicket"
         />
       </q-card-actions>
     </q-card>
     <ContatoModal
-      :modalContato.sync="modalContato"
+      v-model="modalContato"
       @contatoModal:contato-criado="contatoCriadoNotoTicket"
     />
   </q-dialog>
-
 </template>
 
-<script>
-const userId = +localStorage.getItem('userId')
+<script setup>
+import { ref, onUnmounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { useQuasar } from 'quasar'
+import { useStore } from 'vuex'
 import { ListarContatos } from 'src/service/contatos'
 import { CriarTicket } from 'src/service/tickets'
 import ContatoModal from 'src/pages/contatos/ContatoModal'
 
-export default {
-  name: 'ModalNovoTicket',
-  components: { ContatoModal },
-  props: {
-    modalNovoTicket: {
-      type: Boolean,
-      default: false
-    }
-  },
-  data () {
-    return {
-      ticket: {},
-      contatoSelecionado: null,
-      contatos: [],
-      modalContato: false,
-      loading: false
-    }
-  },
-  methods: {
-    fecharModal () {
-      this.ticket = {}
-      this.contatoSelecionado = null
-      this.$emit('update:modalNovoTicket', false)
-    },
-    async localizarContato (search, update, abort) {
-      if (search.length < 2) {
-        if (this.contatos.length) update(() => { this.contatos = [...this.contatos] })
-        abort()
-        return
-      }
-      this.loading = true
-      const { data } = await ListarContatos({
-        searchParam: search
-      })
-
-      update(() => {
-        if (data.contacts.length) {
-          this.contatos = data.contacts
-        } else {
-          this.contatos = [{}]
-          // this.$refs.selectAutoCompleteContato.toggleOption({}, true)
-        }
-      })
-      this.loading = false
-    },
-    contatoCriadoNotoTicket (contato) {
-      this.contatoSelecionado = contato
-      this.criarTicket()
-    },
-    async criarTicket () {
-      if (!this.contatoSelecionado.id) return
-      this.loading = true
-      try {
-        const { data: ticket } = await CriarTicket({
-          contactId: this.contatoSelecionado.id,
-          isActiveDemand: true,
-          userId: userId,
-          status: 'open'
-        })
-        await this.$store.commit('SET_HAS_MORE', true)
-        await this.$store.dispatch('AbrirChatMensagens', ticket)
-        this.$q.notify({
-          message: `Atendimento Iniciado || ${ticket.contact.name} - Ticket: ${ticket.id}`,
-          type: 'positive',
-          progress: true,
-          position: 'top',
-          actions: [{
-            icon: 'close',
-            round: true,
-            color: 'white'
-          }]
-        })
-        this.fecharModal()
-        if (this.$route.name !== 'atendimento') {
-          this.$router.push({ name: 'atendimento' })
-        }
-      } catch (error) {
-        console.error(error)
-        this.$notificarErro('Ocorreu um erro ao iniciar o atendimento!', error)
-      }
-      this.loading = false
-    }
-  },
-  destroyed () {
-    this.contatoSelecionado = null
+defineProps({
+  modalNovoTicket: {
+    type: Boolean,
+    default: false
   }
+})
+
+const emit = defineEmits(['update:modalNovoTicket'])
+
+const userId = +localStorage.getItem('userId')
+const router = useRouter()
+const route = useRoute()
+const $q = useQuasar()
+const store = useStore()
+
+const ticket = ref({})
+const contatoSelecionado = ref(null)
+const contatos = ref([])
+const modalContato = ref(false)
+const loading = ref(false)
+const selectAutoCompleteContato = ref(null)
+
+const fecharModal = () => {
+  ticket.value = {}
+  contatoSelecionado.value = null
+  emit('update:modalNovoTicket', false)
 }
+
+const localizarContato = async (search, update, abort) => {
+  if (search.length < 2) {
+    if (contatos.value.length) update(() => { contatos.value = [...contatos.value] })
+    abort()
+    return
+  }
+  loading.value = true
+  const { data } = await ListarContatos({ searchParam: search })
+
+  update(() => {
+    if (data.contacts.length) {
+      contatos.value = data.contacts
+    } else {
+      contatos.value = [{}]
+    }
+  })
+  loading.value = false
+}
+
+const contatoCriadoNotoTicket = contato => {
+  contatoSelecionado.value = contato
+  criarTicket()
+}
+
+const criarTicket = async () => {
+  if (!contatoSelecionado.value?.id) return
+  loading.value = true
+  try {
+    const { data: ticket } = await CriarTicket({
+      contactId: contatoSelecionado.value.id,
+      isActiveDemand: true,
+      userId,
+      status: 'open'
+    })
+    await store.commit('SET_HAS_MORE', true)
+    await store.dispatch('AbrirChatMensagens', ticket)
+    $q.notify({
+      message: `Atendimento Iniciado || ${ticket.contact.name} - Ticket: ${ticket.id}`,
+      type: 'positive',
+      progress: true,
+      position: 'top',
+      actions: [{
+        icon: 'close',
+        round: true,
+        color: 'white'
+      }]
+    })
+    fecharModal()
+    if (route.name !== 'atendimento') {
+      router.push({ name: 'atendimento' })
+    }
+  } catch (error) {
+    console.error(error)
+    $q.notify({
+      type: 'negative',
+      message: 'Ocorreu um erro ao iniciar o atendimento!',
+      caption: error.message
+    })
+  }
+  loading.value = false
+}
+
+onUnmounted(() => {
+  contatoSelecionado.value = null
+})
 </script>
 
 <style lang="scss" scoped>

@@ -13,14 +13,13 @@
           :data-content="formattedDate(mensagem.createdAt)"
           v-show="index === 0 || formattedDate(mensagem.createdAt) !== formattedDate(mensagens[index - 1].createdAt)"
         >
-        <template v-if="mensagens.length && index === mensagens.length - 1">
-          <div
-            :key="`ref-${mensagem.createdAt}`"
-            ref="lastMessageRef"
-            id="lastMessageRef"
-            style="float: 'left', background: 'black', clear: 'both'"
-          />
-        </template>
+        <div
+          v-if="mensagens.length && index === mensagens.length - 1"
+          :key="`ref-${mensagem.createdAt}`"
+          ref="lastMessageRef"
+          id="lastMessageRef"
+          style="float: 'left', background: 'black', clear: 'both'"
+        />
         <div
           :key="`chat-message-${mensagem.id}`"
           :id="`chat-message-${mensagem.id}`"
@@ -126,7 +125,13 @@
               round
               icon="mdi-chevron-down"
             >
-              <q-menu square auto-close anchor="bottom left" self="top left">
+              <q-menu
+                square
+                auto-close
+                anchor="bottom left"
+                self="top left"
+                class="menu-options"
+              >
                 <q-list style="min-width: 100px">
                   <q-item
                     :disable="!['whatsapp', 'telegram'].includes(ticketFocado.channel)"
@@ -194,11 +199,12 @@
               v-if="!['vcard', 'application', 'audio'].includes(mensagem.mediaType)"
               :class="{ 'q-mt-sm': mensagem.mediaType !== 'chat' }"
               class="q-message-container row items-end no-wrap"
-              v-html="formatBody(mensagem.body)"
-            />
+            >
+              <span v-text="formatBody(mensagem.body)" />
+            </div>
           </div>
         </q-chat-message>
-      </template>
+      </div>
     </transition-group>
 
     <!-- Modal de edição -->
@@ -220,16 +226,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { storeToRefs } from 'pinia'
 import { useAtendimentoStore } from '../../stores/atendimento'
 import { useMensagemChat } from '../../composables/atendimento/useMensagemChat'
 import { useMessageFormat } from '../../composables/atendimento/useMessageFormat'
-import VueEasyLightbox from 'vue-easy-lightbox'
 import MensagemRespondida from './MensagemRespondida.vue'
 import ContatoCard from './ContatoCard.vue'
-import ContatoModal from './ContatoModal.vue'
 
 // Props
 const props = defineProps({
@@ -268,7 +272,8 @@ const emit = defineEmits([
   'update:replyingMessage',
   'update:mensagensParaEncaminhar',
   'update:ativarMultiEncaminhamento',
-  'mensagem-chat:encaminhar-mensagem'
+  'mensagem-chat-encaminhar',
+  'mensagem-chat-focar-input'
 ])
 
 // Composables
@@ -277,67 +282,51 @@ const atendimentoStore = useAtendimentoStore()
 const { ticketFocado } = storeToRefs(atendimentoStore)
 
 const {
-  modalContato,
-  currentContact,
   mensagemAtual,
   showModaledit,
   abrirModalImagem,
   urlMedia,
   identificarMensagem,
-  loading,
   ackIcons,
   openContactModal,
-  closeModal,
-  saveContact,
   salvarMensagem,
   abrirModalEditarMensagem,
   verificarEncaminharMensagem,
-  isPDF,
   isGroupLabel,
   isDesactivatDelete,
-  buscarImageCors,
   deletarMensagem,
   focarMensagem
 } = useMensagemChat()
 
 const {
   formattedDate,
-  messageClasses,
-  messageStyle,
-  formatBody,
-  getMediaType
+  formatBody
 } = useMessageFormat({ message: props.mensagens[0] })
 
 // Métodos
-const handleForwardCheck = (mensagem) => {
-  const novasMensagens = verificarEncaminharMensagem(
-    mensagem,
-    props.mensagensParaEncaminhar,
-    $refs
-  )
+const handleForwardCheck = msg => {
+  const novasMensagens = verificarEncaminharMensagem(msg, props.mensagensParaEncaminhar)
   emit('update:mensagensParaEncaminhar', novasMensagens)
 }
 
-const citarMensagem = (mensagem) => {
-  emit('update:replyingMessage', mensagem)
-  window.$root.$emit('mensagem-chat:focar-input-mensagem', mensagem)
+const citarMensagem = msg => {
+  emit('update:replyingMessage', msg)
+  window.$root.$emit('mensagem-chat-focar-input', msg)
 }
 
-const encaminharMensagem = (mensagem) => {
-  emit('mensagem-chat:encaminhar-mensagem', mensagem)
+const encaminharMensagem = msg => {
+  emit('mensagem-chat-encaminhar', msg)
 }
 
-const marcarMensagensParaEncaminhar = (mensagem) => {
+const marcarMensagensParaEncaminhar = () => {
   emit('update:mensagensParaEncaminhar', [])
   emit('update:ativarMultiEncaminhamento', !props.ativarMultiEncaminhamento)
 }
 
-const isMessageSelected = (mensagem) => {
-  return props.mensagensParaEncaminhar.some(m => m.id === mensagem.id)
-}
+const isMessageSelected = msg => props.mensagensParaEncaminhar.some(m => m.id === msg.id)
 
-const getMessageComponent = (mensagem) => {
-  switch (mensagem.mediaType) {
+const getMessageComponent = msg => {
+  switch (msg.mediaType) {
     case 'audio':
       return 'audio-message'
     case 'vcard':
