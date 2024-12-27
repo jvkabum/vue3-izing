@@ -1,160 +1,132 @@
 import { ref, computed } from 'vue'
+import { useAtendimentoStore } from 'src/stores/atendimento'
+import { useQueueStore } from 'src/stores/queue'
 
 export function useAtendimentoFilters() {
-  const filters = ref({
-    status: 'open',
-    search: '',
-    userId: null,
-    channel: null,
-    date: null,
-    tags: []
+  const atendimentoStore = useAtendimentoStore()
+  const queueStore = useQueueStore()
+
+  // Estado
+  const searchText = ref('')
+  const selectedStatus = ref('open')
+  const selectedQueues = ref([])
+  const showUnreadOnly = ref(false)
+  const showUnassignedOnly = ref(false)
+  const showAllTickets = ref(false)
+
+  // Computed
+  const queues = computed(() => queueStore.queues)
+  const tickets = computed(() => atendimentoStore.tickets)
+
+  const filteredTickets = computed(() => {
+    let filtered = [...tickets.value]
+
+    // Filtro por texto
+    if (searchText.value) {
+      const query = searchText.value.toLowerCase()
+      filtered = filtered.filter(ticket => 
+        ticket.contact?.name?.toLowerCase().includes(query) ||
+        ticket.lastMessage?.toLowerCase().includes(query) ||
+        ticket.id?.toString().includes(query)
+      )
+    }
+
+    // Filtro por status
+    if (!showAllTickets.value) {
+      filtered = filtered.filter(ticket => 
+        ticket.status === selectedStatus.value
+      )
+    }
+
+    // Filtro por filas
+    if (selectedQueues.value.length) {
+      filtered = filtered.filter(ticket => 
+        selectedQueues.value.includes(ticket.queueId)
+      )
+    }
+
+    // Filtro por não lidas
+    if (showUnreadOnly.value) {
+      filtered = filtered.filter(ticket => 
+        ticket.unreadMessages > 0
+      )
+    }
+
+    // Filtro por não atribuídos
+    if (showUnassignedOnly.value) {
+      filtered = filtered.filter(ticket => 
+        !ticket.userId
+      )
+    }
+
+    return filtered
   })
 
-  const hasActiveFilters = computed(() => {
-    return filters.value.search ||
-           filters.value.userId ||
-           filters.value.channel ||
-           filters.value.date ||
-           filters.value.tags.length > 0
-  })
-
-  function filterTickets(tickets) {
-    if (!tickets) return []
-
-    return tickets.filter(ticket => {
-      // Filtrar por status
-      if (filters.value.status && ticket.status !== filters.value.status) {
-        return false
-      }
-
-      // Filtrar por usuário
-      if (filters.value.userId && ticket.userId !== filters.value.userId) {
-        return false
-      }
-
-      // Filtrar por canal
-      if (filters.value.channel && ticket.channel !== filters.value.channel) {
-        return false
-      }
-
-      // Filtrar por data
-      if (filters.value.date) {
-        const ticketDate = new Date(ticket.updatedAt || ticket.createdAt)
-        const filterDate = new Date(filters.value.date)
-        
-        if (ticketDate.toDateString() !== filterDate.toDateString()) {
-          return false
-        }
-      }
-
-      // Filtrar por tags
-      if (filters.value.tags.length > 0) {
-        const ticketTags = ticket.tags || []
-        const hasAllTags = filters.value.tags.every(tag => 
-          ticketTags.includes(tag)
-        )
-        if (!hasAllTags) {
-          return false
-        }
-      }
-
-      // Filtrar por texto de busca
-      if (filters.value.search) {
-        const searchLower = filters.value.search.toLowerCase()
-        const contactName = ticket.contact?.name?.toLowerCase() || ''
-        const lastMessage = ticket.lastMessage?.body?.toLowerCase() || ''
-        const protocol = ticket.protocol?.toLowerCase() || ''
-
-        return contactName.includes(searchLower) || 
-               lastMessage.includes(searchLower) ||
-               protocol.includes(searchLower)
-      }
-
-      return true
-    })
+  // Métodos
+  const setSearchText = text => {
+    searchText.value = text
   }
 
-  function setFilter(key, value) {
-    filters.value[key] = value
+  const setSelectedStatus = status => {
+    selectedStatus.value = status
   }
 
-  function addTag(tag) {
-    if (!filters.value.tags.includes(tag)) {
-      filters.value.tags.push(tag)
+  const toggleQueue = queueId => {
+    const index = selectedQueues.value.indexOf(queueId)
+    if (index === -1) {
+      selectedQueues.value.push(queueId)
+    } else {
+      selectedQueues.value.splice(index, 1)
     }
   }
 
-  function removeTag(tag) {
-    const index = filters.value.tags.indexOf(tag)
-    if (index !== -1) {
-      filters.value.tags.splice(index, 1)
-    }
+  const clearQueues = () => {
+    selectedQueues.value = []
   }
 
-  function clearFilters() {
-    filters.value = {
-      status: 'open',
-      search: '',
-      userId: null,
-      channel: null,
-      date: null,
-      tags: []
-    }
+  const toggleUnreadOnly = () => {
+    showUnreadOnly.value = !showUnreadOnly.value
   }
 
-  function getStatusColor(status) {
-    switch (status) {
-      case 'open':
-        return 'positive'
-      case 'pending':
-        return 'warning'
-      case 'closed':
-        return 'negative'
-      default:
-        return 'grey'
-    }
+  const toggleUnassignedOnly = () => {
+    showUnassignedOnly.value = !showUnassignedOnly.value
   }
 
-  function getChannelIcon(channel) {
-    switch (channel?.toLowerCase()) {
-      case 'whatsapp':
-        return 'mdi-whatsapp'
-      case 'instagram':
-        return 'mdi-instagram'
-      case 'facebook':
-        return 'mdi-facebook'
-      case 'telegram':
-        return 'mdi-telegram'
-      default:
-        return 'mdi-chat'
-    }
+  const toggleShowAllTickets = () => {
+    showAllTickets.value = !showAllTickets.value
   }
 
-  function getChannelColor(channel) {
-    switch (channel?.toLowerCase()) {
-      case 'whatsapp':
-        return 'green'
-      case 'instagram':
-        return 'purple'
-      case 'facebook':
-        return 'blue'
-      case 'telegram':
-        return 'light-blue'
-      default:
-        return 'grey'
-    }
+  const resetFilters = () => {
+    searchText.value = ''
+    selectedStatus.value = 'open'
+    selectedQueues.value = []
+    showUnreadOnly.value = false
+    showUnassignedOnly.value = false
+    showAllTickets.value = false
   }
 
   return {
-    filters,
-    hasActiveFilters,
-    filterTickets,
-    setFilter,
-    addTag,
-    removeTag,
-    clearFilters,
-    getStatusColor,
-    getChannelIcon,
-    getChannelColor
+    // Estado
+    searchText,
+    selectedStatus,
+    selectedQueues,
+    showUnreadOnly,
+    showUnassignedOnly,
+    showAllTickets,
+
+    // Computed
+    queues,
+    tickets,
+    filteredTickets,
+
+    // Métodos
+    setSearchText,
+    setSelectedStatus,
+    toggleQueue,
+    clearQueues,
+    toggleUnreadOnly,
+    toggleUnassignedOnly,
+    toggleShowAllTickets,
+    resetFilters
   }
 }

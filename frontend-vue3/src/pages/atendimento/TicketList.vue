@@ -31,8 +31,8 @@
 import { watch, onMounted, onBeforeUnmount } from 'vue'
 import ItemTicket from './ItemTicket.vue'
 import { useTicketList } from '../../composables/atendimento/useTicketList'
+import { defineProps } from 'vue'
 
-// Props
 const props = defineProps({
   filas: {
     type: Array,
@@ -68,9 +68,10 @@ const props = defineProps({
   }
 })
 
+// Composables
 const {
   loading,
-  tickets,
+  getTickets: tickets,
   onScroll,
   consultarTickets,
   setupTicketListSocket,

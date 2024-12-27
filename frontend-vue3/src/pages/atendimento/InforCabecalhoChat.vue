@@ -11,7 +11,7 @@
           icon="mdi-menu"
           class="q-mx-xs-none q-ml-md"
           :color="$q.dark.isActive ? 'white' : ''"
-          @click="$emit('menu-click')" 
+          @click="handleMenuClick" 
         />
 
         <!-- Contact Info -->
@@ -20,7 +20,7 @@
           v-ripple
           class="q-ma-none q-pa-none full"
           style="min-height: 60px; height: 60px; width: 300px;"
-          @click="$emit('contact-info-click')"
+          @click="handleContactInfoClick"
         >
           <q-item-section avatar class="q-pl-sm">
             <q-btn round flat>
@@ -72,7 +72,7 @@
           <!-- Desktop Buttons -->
           <template v-if="!$q.screen.xs">
             <q-btn
-              @click="$emit('reopen')"
+              @click="handleReopen(cticket)"
               flat
               autofocus
               icon="mdi-reload"
@@ -87,7 +87,7 @@
 
             <q-btn
               v-if="ticketFocado.channel !== 'instagram' && ticketFocado.channel !== 'telegram'"
-              @click="$emit('schedule')"
+              @click="handleSchedule"
               flat
               icon="mdi-message-text-clock-outline"
               color="primary"
@@ -100,7 +100,7 @@
             </q-btn>
 
             <q-btn
-              @click="$emit('return')"
+              @click="handleReturn(cticket)"
               flat
               icon="mdi-replay"
               color="primary"
@@ -113,7 +113,7 @@
             </q-btn>
 
             <q-btn
-              @click="$emit('resolve')"
+              @click="handleResolve(cticket)"
               color="green"
               flat
               class="bg-padrao btn-rounded"
@@ -155,7 +155,7 @@
               :class="{ 'bg-black': $q.dark.isActive }"
             >
               <q-fab-action
-                @click="$emit('resolve')"
+                @click="handleResolve(cticket)"
                 color="primary"
                 flat
                 class="bg-padrao q-pa-xs"
@@ -168,7 +168,7 @@
               </q-fab-action>
 
               <q-fab-action
-                @click="$emit('return')"
+                @click="handleReturn(cticket)"
                 flat
                 icon="mdi-replay"
                 color="primary"
@@ -195,7 +195,7 @@
 
               <q-fab-action
                 v-if="ticketFocado.channel !== 'waba'"
-                @click="$emit('schedule')"
+                @click="handleSchedule"
                 flat
                 color="primary"
                 class="bg-padrao q-pa-xs"
@@ -269,20 +269,13 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
+import { useQuasar } from 'quasar'
 import { useInfoCabecalho } from 'src/composables/atendimento/useInfoCabecalho'
+import { useHeaderActions } from 'src/composables/atendimento/useHeaderActions'
 
-// Emits
-const emit = defineEmits([
-  'menu-click',
-  'contact-info-click',
-  'reopen',
-  'schedule',
-  'return',
-  'resolve'
-])
+const $q = useQuasar()
 
-// Composable
 const {
   modalTransferirTicket,
   usuarioSelecionado,
@@ -296,4 +289,13 @@ const {
   listarFilas,
   confirmarTransferenciaTicket
 } = useInfoCabecalho()
+
+const {
+  handleReopen,
+  handleReturn,
+  handleResolve,
+  handleSchedule,
+  handleMenuClick,
+  handleContactInfoClick
+} = useHeaderActions()
 </script>

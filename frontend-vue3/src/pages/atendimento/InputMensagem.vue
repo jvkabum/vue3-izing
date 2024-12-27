@@ -248,13 +248,12 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
+import { computed, onMounted, onBeforeUnmount } from 'vue'
 import { useQuasar } from 'quasar'
-import { storeToRefs } from 'pinia'
 import { VEmojiPicker } from 'v-emoji-picker'
-import { useStore } from 'src/stores'
-import { useMensagem } from 'src/composables/useMensagem'
+import { useMessageInput } from 'src/composables/atendimento/useMessageInput'
 import { useTicketStatus } from 'src/composables/useTicketStatus'
+import { useAudioRecording } from 'src/composables/atendimento/useAudioRecording'
 import RecordingTimer from './RecordingTimer.vue'
 
 const props = defineProps({
@@ -275,29 +274,27 @@ const props = defineProps({
 const emit = defineEmits(['update:replyingMessage'])
 
 const $q = useQuasar()
-const store = useStore()
-const { ticketFocado } = storeToRefs(store)
 
 const {
   loading,
-  abrirFilePicker,
-  abrirModalPreviewImagem,
-  isRecordingAudio,
-  urlMediaPreview,
-  visualizarMensagensRapidas,
-  arquivos,
-  textChat,
+  messageText: textChat,
+  attachments: arquivos,
+  showEmojiPicker: visualizarMensagensRapidas,
   sign,
-  scheduleDate,
+  ticketFocado,
+  canSendMessage,
   handleInputPaste,
-  mensagemRapidaSelecionada,
-  handleSartRecordingAudio,
-  handleStopRecordingAudio,
-  handleCancelRecordingAudio,
-  prepararUploadMedia,
-  prepararMensagemTexto,
+  addEmoji: onInsertSelectEmoji,
+  sendMessage: enviarMensagem,
   handleSign
-} = useMensagem()
+} = useMessageInput()
+
+const {
+  isRecording: isRecordingAudio,
+  startRecording: handleSartRecordingAudio,
+  stopRecording: handleStopRecordingAudio,
+  cancelRecording: handleCancelRecordingAudio
+} = useAudioRecording()
 
 const { iniciarAtendimento } = useTicketStatus()
 

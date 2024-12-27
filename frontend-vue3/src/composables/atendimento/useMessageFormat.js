@@ -1,80 +1,43 @@
-import { computed } from 'vue'
 import { format } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 
-export function useMessageFormat(props) {
-  const formattedDate = computed(() => {
-    if (!props.message.createdAt) return ''
+export function useMessageFormat() {
+  const formatDate = (date, pattern = 'dd/MM/yyyy HH:mm') => {
+    if (!date) return ''
+    return format(new Date(date), pattern, { locale: ptBR })
+  }
 
-    const date = new Date(props.message.createdAt)
+  const formatRelativeDate = date => {
+    if (!date) return ''
+
+    const messageDate = new Date(date)
     const now = new Date()
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const messageDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-
     const diffTime = today.getTime() - messageDate.getTime()
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
 
     if (diffDays === 0) {
-      return format(date, "'Hoje às' HH:mm")
+      return format(messageDate, "'Hoje às' HH:mm", { locale: ptBR })
     }
 
     if (diffDays === 1) {
-      return format(date, "'Ontem às' HH:mm")
+      return format(messageDate, "'Ontem às' HH:mm", { locale: ptBR })
     }
 
     if (diffDays <= 7) {
-      return format(date, "EEEE 'às' HH:mm")
+      return format(messageDate, "EEEE 'às' HH:mm", { locale: ptBR })
     }
 
-    if (date.getFullYear() === now.getFullYear()) {
-      return format(date, "d 'de' MMMM 'às' HH:mm")
+    if (messageDate.getFullYear() === now.getFullYear()) {
+      return format(messageDate, "d 'de' MMMM 'às' HH:mm", { locale: ptBR })
     }
 
-    return format(date, "d 'de' MMMM 'de' yyyy 'às' HH:mm")
-  })
+    return format(messageDate, "d 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR })
+  }
 
-  const messageClasses = computed(() => {
-    const classes = ['message-bubble']
+  const formatMessageBody = body => {
+    if (!body) return ''
 
-    if (props.message.fromMe) {
-      classes.push('from-me')
-    } else {
-      classes.push('from-contact')
-    }
-
-    if (props.isConsecutive) {
-      classes.push('consecutive')
-    }
-
-    if (props.message.isDeleted) {
-      classes.push('deleted')
-    }
-
-    if (props.message.mediaUrl) {
-      classes.push('has-media')
-    }
-
-    if (props.message.quotedMsg) {
-      classes.push('has-quote')
-    }
-
-    return classes.join(' ')
-  })
-
-  const messageStyle = computed(() => {
-    const style = {}
-
-    if (props.message.backgroundColor) {
-      style.backgroundColor = props.message.backgroundColor
-    }
-
-    if (props.message.textColor) {
-      style.color = props.message.textColor
-    }
-
-    return style
-  })
-
-  function formatBody(body) {
     // Remove múltiplas quebras de linha
     let formatted = body.replace(/\n{3,}/g, '\n\n')
 
@@ -93,30 +56,44 @@ export function useMessageFormat(props) {
       .replace(/:P/g, '😛')
       .replace(/<3/g, '❤️')
 
+    // Formata menções (@username)
+    formatted = formatted.replace(
+      /@(\w+)/g,
+      '<span class="mention">@$1</span>'
+    )
+
+    // Formata hashtags (#tag)
+    formatted = formatted.replace(
+      /#(\w+)/g,
+      '<span class="hashtag">#$1</span>'
+    )
+
     return formatted
   }
 
-  function getMediaType(url) {
-    const extension = url.split('.').pop()?.toLowerCase() || ''
+  const formatPhoneNumber = phone => {
+    if (!phone) return ''
 
-    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp']
-    const videoExtensions = ['mp4', 'webm', 'ogg']
-    const audioExtensions = ['mp3', 'wav', 'ogg']
-    const documentExtensions = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx']
+    // Remove todos os caracteres não numéricos
+    const numbers = phone.replace(/\D/g, '')
 
-    if (imageExtensions.includes(extension)) return 'image'
-    if (videoExtensions.includes(extension)) return 'video'
-    if (audioExtensions.includes(extension)) return 'audio'
-    if (documentExtensions.includes(extension)) return 'document'
+    // Formato: (XX) XXXXX-XXXX
+    if (numbers.length === 11) {
+      return numbers.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')
+    }
 
-    return 'unknown'
+    // Formato: (XX) XXXX-XXXX
+    if (numbers.length === 10) {
+      return numbers.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3')
+    }
+
+    return phone
   }
 
   return {
-    formattedDate,
-    messageClasses,
-    messageStyle,
-    formatBody,
-    getMediaType
+    formatDate,
+    formatRelativeDate,
+    formatMessageBody,
+    formatPhoneNumber
   }
 }

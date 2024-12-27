@@ -1,112 +1,109 @@
-import { computed } from 'vue'
-import { useAtendimentoStore } from '../../stores/atendimento'
-import { useAtendimentoFilters } from './useAtendimentoFilters'
-import { useAtendimentoTabs } from './useAtendimentoTabs'
+import { ref, computed } from 'vue'
+import { useQuasar } from 'quasar'
+import { useAtendimentoStore } from 'src/stores/atendimento'
+import { useAtendimentoNotification } from './useAtendimentoNotification'
 
 export function useAtendimentoState() {
+  const $q = useQuasar()
   const store = useAtendimentoStore()
-  const { filterTickets } = useAtendimentoFilters()
-  const { updateTabCounts } = useAtendimentoTabs()
+  const notification = useAtendimentoNotification()
 
-  // Getters
-  const tickets = computed(() => store.getTickets)
-  const ticketFocado = computed(() => store.getTicketFocado)
-  const messages = computed(() => store.getMessages)
-  const hasMore = computed(() => store.getHasMore)
-  const isLoading = computed(() => store.isLoading)
+  // Estado local
+  const loading = ref(false)
+  const drawerOpen = ref($q.screen.gt.sm)
+  const activeTab = ref('open')
+  const searchQuery = ref('')
+  const showAllTickets = ref(false)
+  const selectedQueues = ref([])
 
   // Computed
+  const tickets = computed(() => store.getTickets)
+  const ticketFocado = computed(() => store.ticketFocado)
+  const hasUnreadMessages = computed(() => store.hasUnreadMessages)
   const filteredTickets = computed(() => {
-    const filtered = filterTickets(tickets.value)
-    updateTabCounts(filtered)
+    let filtered = [...tickets.value]
+
+    if (searchQuery.value) {
+      const query = searchQuery.value.toLowerCase()
+      filtered = filtered.filter(ticket => 
+        ticket.contact?.name?.toLowerCase().includes(query) ||
+        ticket.lastMessage?.toLowerCase().includes(query)
+      )
+    }
+
+    if (!showAllTickets.value) {
+      filtered = filtered.filter(ticket => 
+        ticket.status === activeTab.value
+      )
+    }
+
+    if (selectedQueues.value.length) {
+      filtered = filtered.filter(ticket => 
+        selectedQueues.value.includes(ticket.queueId)
+      )
+    }
+
     return filtered
   })
 
-  // Actions
-  async function loadTickets() {
-    store.setLoading(true)
+  // Métodos
+  const toggleDrawer = () => {
+    drawerOpen.value = !drawerOpen.value
+  }
+
+  const setActiveTab = tab => {
+    activeTab.value = tab
+  }
+
+  const setSearchQuery = query => {
+    searchQuery.value = query
+  }
+
+  const toggleShowAllTickets = () => {
+    showAllTickets.value = !showAllTickets.value
+  }
+
+  const updateSelectedQueues = queues => {
+    selectedQueues.value = queues
+  }
+
+  const focusTicket = async ticket => {
     try {
-      await store.loadTickets()
+      loading.value = true
+      await store.setTicketFocado(ticket)
     } catch (error) {
-      console.error('Erro ao carregar tickets:', error)
-      throw error
+      notification.notifyError('Erro ao focar ticket')
     } finally {
-      store.setLoading(false)
+      loading.value = false
     }
   }
 
-  async function loadMessages(ticketId, params = {}) {
-    store.setLoading(true)
-    try {
-      await store.loadMessages(ticketId, params)
-    } catch (error) {
-      console.error('Erro ao carregar mensagens:', error)
-      throw error
-    } finally {
-      store.setLoading(false)
-    }
-  }
-
-  function focusTicket(ticket) {
-    store.setTicketFocado(ticket)
-    if (ticket?.id) {
-      loadMessages(ticket.id)
-    }
-  }
-
-  function unfocusTicket() {
+  const clearTicketFocus = () => {
     store.clearTicketFocado()
-    store.clearMessages()
-  }
-
-  function addMessage(message) {
-    store.addMessage(message)
-  }
-
-  function updateMessage(messageId, updates) {
-    store.updateMessage(messageId, updates)
-  }
-
-  function removeMessage(messageId) {
-    store.removeMessage(messageId)
-  }
-
-  async function updateTicketStatus(ticketId, status) {
-    try {
-      await store.updateTicketStatus(ticketId, status)
-    } catch (error) {
-      console.error('Erro ao atualizar status:', error)
-      throw error
-    }
-  }
-
-  function setHasMore(value) {
-    store.setHasMore(value)
-  }
-
-  function reset() {
-    store.reset()
   }
 
   return {
-    // State
+    // Estado
+    loading,
+    drawerOpen,
+    activeTab,
+    searchQuery,
+    showAllTickets,
+    selectedQueues,
+
+    // Computed
     tickets,
     ticketFocado,
-    messages,
-    hasMore,
-    isLoading,
+    hasUnreadMessages,
     filteredTickets,
 
-    // Actions
-    loadTickets,
-    loadMessages,
+    // Métodos
+    toggleDrawer,
+    setActiveTab,
+    setSearchQuery,
+    toggleShowAllTickets,
+    updateSelectedQueues,
     focusTicket,
-    unfocusTicket,
-    addMessage,
-    updateMessage,
-    removeMessage,
-    updateTicketStatus,
-    setHasMore,
-    reset
+    clearTicketFocus
   }
 }

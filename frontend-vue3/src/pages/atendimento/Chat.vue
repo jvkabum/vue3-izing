@@ -49,15 +49,10 @@
       <div id="messageListStart"></div>
     </q-scroll-area>
 
-    <!-- Empty State -->
-    <div
-      v-if="!selectedTicket?.id"
-      class="absolute-center items-center"
-      :class="{
+    <div v-if="!selectedTicket?.id" class="absolute-center items-center" :class="{
         'row col text-center q-col-gutter-lg': !$q.screen.xs,
         'full-width text-center': $q.screen.xs
-      }"
-    >
+      }">
       <q-icon
         style="margin-left: 30vw"
         size="6em"
@@ -69,15 +64,11 @@
           'full-width text-center center-block': $q.screen.xs
         }"
       />
-      <h1
-        class="text-grey-6 row col justify-center"
-        :class="{ 'full-width': $q.screen.xs }"
-      >
+      <h1 class="text-grey-6 row col justify-center" :class="{ 'full-width': $q.screen.xs }">
         Selecione um ticket!
       </h1>
     </div>
 
-    <!-- Scroll to Bottom Button -->
     <div v-if="messages.length" class="relative-position">
       <transition
         appear
@@ -100,11 +91,9 @@
       </transition>
     </div>
 
-    <!-- Footer -->
     <q-footer class="bg-white">
       <q-separator class="bg-grey-4" />
 
-      <!-- Reply Preview -->
       <q-list
         v-if="replyingMessage"
         :style="`border-top: 1px solid; max-height: 140px; width: 100%;`"
@@ -153,11 +142,7 @@
         </q-item>
       </q-list>
 
-      <!-- Forward Messages Banner -->
-      <q-banner
-        class="text-grey-8"
-        v-if="messagesToForward.length > 0"
-      >
+      <q-banner class="text-grey-8" v-if="messagesToForward.length > 0">
         <span class="text-bold text-h5">
           {{ messagesToForward.length }} de 10 mensagens
         </span>
@@ -190,7 +175,6 @@
         </template>
       </q-banner>
 
-      <!-- Message Input -->
       <InputMensagem
         v-if="!messagesToForward.length"
         :quick-messages="quickMessages"
@@ -202,7 +186,6 @@
       <q-resize-observer @resize="handleInputResize" />
     </q-footer>
 
-    <!-- Scheduling Modal -->
     <q-dialog v-model="isSchedulingModalOpen" persistent>
       <q-card :style="modalStyle">
         <q-card-section>
@@ -228,7 +211,6 @@
       </q-card>
     </q-dialog>
 
-    <!-- Forward Modal -->
     <q-dialog
       v-model="isForwardModalOpen"
       persistent
@@ -287,12 +269,13 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { storeToRefs } from 'pinia'
-import { useAtendimentoStore } from '@/stores/atendimento'
-import { useContactsStore } from '@/stores/contacts'
-import { useSocketsStore } from '@/stores/sockets'
-import { useNotifications } from '@/composables/useNotifications'
-import { useTicketStatus } from '@/composables/atendimento/useTicketStatus'
-import { useMessageFormat } from '@/composables/atendimento/useMessageFormat'
+import { useAtendimentoStore } from 'src/stores/atendimento'
+import { useSocketsStore } from 'src/stores/sockets'
+import { useTicketStatus } from 'src/composables/atendimento/useTicketStatus'
+import { useMessageFormat } from 'src/composables/atendimento/useMessageFormat'
+import { useForward } from 'src/composables/atendimento/useForward'
+import { useScroll } from 'src/composables/atendimento/useScroll'
+import { useModal } from 'src/composables/atendimento/useModal'
 
 // Components
 import InforCabecalhoChat from './InforCabecalhoChat.vue'
@@ -301,8 +284,8 @@ import InputMensagem from './InputMensagem.vue'
 import ContactSelect from './ContactSelect.vue'
 
 // Assets
-import whatsBackground from '@/assets/wa-background.png'
-import whatsBackgroundDark from '@/assets/wa-background-dark.jpg'
+import whatsBackground from 'src/assets/wa-background.png'
+import whatsBackgroundDark from 'src/assets/wa-background-dark.jpg'
 
 // Props
 defineProps({
@@ -314,7 +297,6 @@ defineProps({
 
 // Stores
 const atendimentoStore = useAtendimentoStore()
-const contactsStore = useContactsStore()
 const socketsStore = useSocketsStore()
 
 // Store State
@@ -322,21 +304,36 @@ const { messages, selectedTicket, loading, hasMore } = storeToRefs(atendimentoSt
 
 // Composables
 const $q = useQuasar()
-const { notify } = useNotifications()
 const { atualizarStatusTicket } = useTicketStatus()
 const { formatWhatsAppMessage } = useMessageFormat()
+const {
+  modalEncaminhar: isForwardModalOpen,
+  mensagensParaEncaminhar: messagesToForward,
+  ativarMultiEncaminhamento: isMultiForwardEnabled,
+  contatoSelecionado: selectedContact,
+  messageToForward,
+  abrirModalEncaminhar: openForwardModal,
+  encaminharMensagem: confirmForwardMessages,
+  carregarContatos: searchContacts,
+  toggleMultiEncaminhamento: cancelMultiForward
+} = useForward()
+
+const {
+  scrollContainer,
+  showScrollIcon,
+  inputHeight,
+  handleScroll,
+  scrollToBottom,
+  handleInputResize
+} = useScroll()
+
+const {
+  isSchedulingModalOpen,
+  modalStyle
+} = useModal()
 
 // Local State
-const scrollContainer = ref(null)
-const showScrollIcon = ref(false)
-const inputHeight = ref(0)
 const replyingMessage = ref(null)
-const isSchedulingModalOpen = ref(false)
-const isForwardModalOpen = ref(false)
-const isMultiForwardEnabled = ref(false)
-const messageToForward = ref(null)
-const messagesToForward = ref([])
-const selectedContact = ref(null)
 
 // Computed
 const style = computed(() => ({
@@ -351,17 +348,6 @@ const scrollAreaStyle = computed(() => {
   const totalHeight = inputHeight.value + loadingHeight
   return `min-height: calc(100vh - ${62 + totalHeight}px); height: calc(100vh - ${62 + totalHeight}px); width: 100%`
 })
-
-const modalStyle = computed(() => 
-  $q.screen.width < 770 
-    ? 'min-width: 98vw; max-width: 98vw' 
-    : 'min-width: 50vw; max-width: 50vw'
-)
-
-// Methods
-function handleInputResize(size) {
-  inputHeight.value = size.height
-}
 
 async function loadMoreMessages(state) {
   if (loading.value) return
@@ -378,54 +364,6 @@ async function loadMoreMessages(state) {
   } catch (error) {
     state.complete()
     loading.value = false
-  }
-}
-
-function handleScroll(e) {
-  if (!e) return
-  
-  setTimeout(() => {
-    showScrollIcon.value = (
-      e.verticalSize - (e.verticalPosition + e.verticalContainerSize)
-    ) > 2000
-  }, 200)
-}
-
-function scrollToBottom() {
-  document.getElementById('messageListStart').scrollIntoView()
-}
-
-function openForwardModal(message) {
-  messageToForward.value = message
-  isForwardModalOpen.value = true
-}
-
-async function searchContacts(search) {
-  if (search.length < 2) return
-  await contactsStore.searchContacts(search)
-}
-
-function cancelMultiForward() {
-  messagesToForward.value = []
-  isMultiForwardEnabled.value = false
-}
-
-async function confirmForwardMessages(messages) {
-  if (!selectedContact.value?.id) {
-    notify.error('Selecione o contato de destino das mensagens.')
-    return
-  }
-
-  try {
-    await atendimentoStore.forwardMessages(messages, selectedContact.value)
-    notify.success(
-      `Mensagem encaminhada para ${selectedContact.value.name} | Número: ${selectedContact.value.number}`
-    )
-    messagesToForward.value = []
-    isMultiForwardEnabled.value = false
-    isForwardModalOpen.value = false
-  } catch (error) {
-    notify.error('Não foi possível encaminhar mensagem. Tente novamente em alguns minutos!')
   }
 }
 

@@ -5,19 +5,38 @@
         <div class="text-h6">Adicionar Contato</div>
       </q-card-section>
       <q-card-section>
-        <q-input v-model="localContact.name" label="Nome" />
-        <q-input v-model="localContact.number" label="Número" />
+        <q-input 
+          v-model="localContact.name" 
+          label="Nome" 
+          :rules="[val => !!val || 'Nome é obrigatório']"
+        />
+        <q-input 
+          v-model="localContact.number" 
+          label="Número"
+          :rules="[val => !!val || 'Número é obrigatório']"
+          @blur="localContact.number = formatPhoneNumber(localContact.number)"
+        />
       </q-card-section>
       <q-card-actions align="right">
-        <q-btn flat label="Cancelar" @click="close" />
-        <q-btn flat label="Salvar" color="primary" @click="saveContact" />
+        <q-btn 
+          flat 
+          label="Cancelar" 
+          @click="close" 
+        />
+        <q-btn 
+          flat 
+          label="Salvar" 
+          color="primary" 
+          @click="saveContact" 
+        />
       </q-card-actions>
     </q-card>
   </q-dialog>
 </template>
 
 <script setup>
-import { ref, watch, defineProps, defineEmits } from 'vue'
+import { ref, watch } from 'vue'
+import { useContatoAtendimento } from 'src/composables/atendimento/useContatoAtendimento'
 
 const props = defineProps({
   value: {
@@ -27,19 +46,25 @@ const props = defineProps({
   contact: {
     type: Object,
     required: true
+  },
+  ticket: {
+    type: Object,
+    default: () => ({})
   }
 })
 
-const emit = defineEmits(['close', 'saveContact'])
+const emit = defineEmits(['close', 'save-contact'])
 
 const isVisible = ref(props.value)
 const localContact = ref({ ...props.contact })
 
-watch(() => props.value, (newVal) => {
+const { formatPhoneNumber } = useContatoAtendimento(props)
+
+watch(() => props.value, newVal => {
   isVisible.value = newVal
 })
 
-watch(() => props.contact, (newContact) => {
+watch(() => props.contact, newContact => {
   localContact.value = { ...newContact }
 })
 
@@ -48,7 +73,14 @@ const close = () => {
 }
 
 const saveContact = () => {
-  emit('saveContact', localContact.value)
+  if (!localContact.value.name || !localContact.value.number) {
+    return
+  }
+  
+  emit('save-contact', {
+    ...localContact.value,
+    number: formatPhoneNumber(localContact.value.number)
+  })
   close()
 }
 </script>

@@ -136,7 +136,7 @@
             </q-menu>
           </q-btn>
 
-          <q-input
+          <cInput
             v-model="filters.searchParam"
             dense
             outlined
@@ -144,11 +144,8 @@
             type="search"
             class="col-grow"
             @update:model-value="handleFilterChange"
-          >
-            <template #append>
-              <q-icon name="search" />
-            </template>
-          </q-input>
+            placeholder="Digite sua mensagem"
+          />
 
           <q-btn
             color="primary"

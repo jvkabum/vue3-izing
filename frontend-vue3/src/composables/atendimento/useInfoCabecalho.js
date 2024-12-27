@@ -1,16 +1,16 @@
 import { ref, computed } from 'vue'
-import { useQuasar } from 'quasar'
 import { storeToRefs } from 'pinia'
-import { useAtendimentoStore } from '@/stores/atendimento'
-import { useUserStore } from '@/stores/user'
-import { useQueueStore } from '@/stores/queue'
-import { TransferirTicket } from '@/service/tickets'
+import { useAtendimentoStore } from 'src/stores/atendimento'
+import { useUserStore } from 'src/stores/user'
+import { useQueueStore } from 'src/stores/queue'
+import { TransferirTicket } from 'src/service/tickets'
+import { useAtendimentoNotification } from './useAtendimentoNotification'
 
 export function useInfoCabecalho() {
-  const $q = useQuasar()
   const atendimentoStore = useAtendimentoStore()
   const userStore = useUserStore()
   const queueStore = useQueueStore()
+  const notification = useAtendimentoNotification()
 
   // Store State
   const { ticketFocado: cticket } = storeToRefs(atendimentoStore)
@@ -26,39 +26,31 @@ export function useInfoCabecalho() {
   const ticketFocado = computed(() => cticket.value)
 
   // Methods
-  function getValue(obj, path) {
+  const getValue = (obj, path) => {
     try {
       return path.split('.').reduce((acc, part) => acc && acc[part], obj)
-    } catch (error) {
+    } catch {
       return null
     }
   }
 
-  function filterUsers(user) {
+  const filterUsers = user => {
     if (!filaSelecionada.value) return true
     return user.profile === 'admin' || user.queues.includes(filaSelecionada.value)
   }
 
-  async function listarFilas() {
+  const listarFilas = async () => {
     try {
       await queueStore.fetchQueues()
       modalTransferirTicket.value = true
-    } catch (error) {
-      $q.notify({
-        type: 'negative',
-        message: 'Erro ao listar filas',
-        position: 'top'
-      })
+    } catch {
+      notification.notifyQueueListError()
     }
   }
 
-  async function confirmarTransferenciaTicket() {
+  const confirmarTransferenciaTicket = async () => {
     if (!filaSelecionada.value) {
-      $q.notify({
-        type: 'warning',
-        message: 'Selecione uma fila',
-        position: 'top'
-      })
+      notification.notifyQueueRequired()
       return
     }
 
@@ -69,22 +61,13 @@ export function useInfoCabecalho() {
         userId: usuarioSelecionado.value
       })
 
-      $q.notify({
-        type: 'positive',
-        message: 'Ticket transferido com sucesso',
-        position: 'top'
-      })
-
+      notification.notifyTransferSuccess()
       modalTransferirTicket.value = false
       filaSelecionada.value = null
       usuarioSelecionado.value = null
       
-    } catch (error) {
-      $q.notify({
-        type: 'negative',
-        message: 'Erro ao transferir ticket',
-        position: 'top'
-      })
+    } catch {
+      notification.notifyTransferError()
     }
   }
 

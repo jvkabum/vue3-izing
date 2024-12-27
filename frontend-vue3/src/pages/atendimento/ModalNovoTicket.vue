@@ -1,8 +1,9 @@
 <template>
   <q-dialog
-    :value="modalNovoTicket"
+    :model-value="modelValue"
+    @update:model-value="$emit('update:modelValue', $event)"
     persistent
-    @hide="fecharModal"
+    @hide="fecharModal(emit)"
   >
     <q-card
       class="q-pa-md"
@@ -32,7 +33,7 @@
           label="Localizar Contato"
           hint="Digite no mínimo duas letras para localizar o contato."
         >
-          <template v-slot:before-options>
+          <template #before-options>
             <q-btn
               color="primary"
               no-caps
@@ -45,7 +46,7 @@
               @click="modalContato = true"
             />
           </template>
-          <template v-slot:option="scope">
+          <template #option="scope">
             <q-item
               v-bind="scope.itemProps"
               v-on="scope.itemEvents"
@@ -73,7 +74,7 @@
           label="Salvar"
           class="q-px-md"
           color="primary"
-          @click="criarTicket"
+          @click="criarTicket(emit)"
         />
       </q-card-actions>
     </q-card>
@@ -85,108 +86,29 @@
 </template>
 
 <script setup>
-import { ref, onUnmounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { useQuasar } from 'quasar'
-import { useStore } from 'vuex'
-import { ListarContatos } from 'src/service/contatos'
-import { CriarTicket } from 'src/service/tickets'
+import { ref } from 'vue'
+import { useNovoTicket } from 'src/composables/atendimento/useNovoTicket'
 import ContatoModal from 'src/pages/contatos/ContatoModal'
 
 defineProps({
-  modalNovoTicket: {
+  modelValue: {
     type: Boolean,
-    default: false
+    required: true
   }
 })
 
-const emit = defineEmits(['update:modalNovoTicket'])
+const emit = defineEmits(['update:modelValue'])
 
-const userId = +localStorage.getItem('userId')
-const router = useRouter()
-const route = useRoute()
-const $q = useQuasar()
-const store = useStore()
-
-const ticket = ref({})
-const contatoSelecionado = ref(null)
-const contatos = ref([])
-const modalContato = ref(false)
-const loading = ref(false)
 const selectAutoCompleteContato = ref(null)
 
-const fecharModal = () => {
-  ticket.value = {}
-  contatoSelecionado.value = null
-  emit('update:modalNovoTicket', false)
-}
-
-const localizarContato = async (search, update, abort) => {
-  if (search.length < 2) {
-    if (contatos.value.length) update(() => { contatos.value = [...contatos.value] })
-    abort()
-    return
-  }
-  loading.value = true
-  const { data } = await ListarContatos({ searchParam: search })
-
-  update(() => {
-    if (data.contacts.length) {
-      contatos.value = data.contacts
-    } else {
-      contatos.value = [{}]
-    }
-  })
-  loading.value = false
-}
-
-const contatoCriadoNotoTicket = contato => {
-  contatoSelecionado.value = contato
-  criarTicket()
-}
-
-const criarTicket = async () => {
-  if (!contatoSelecionado.value?.id) return
-  loading.value = true
-  try {
-    const { data: ticket } = await CriarTicket({
-      contactId: contatoSelecionado.value.id,
-      isActiveDemand: true,
-      userId,
-      status: 'open'
-    })
-    await store.commit('SET_HAS_MORE', true)
-    await store.dispatch('AbrirChatMensagens', ticket)
-    $q.notify({
-      message: `Atendimento Iniciado || ${ticket.contact.name} - Ticket: ${ticket.id}`,
-      type: 'positive',
-      progress: true,
-      position: 'top',
-      actions: [{
-        icon: 'close',
-        round: true,
-        color: 'white'
-      }]
-    })
-    fecharModal()
-    if (route.name !== 'atendimento') {
-      router.push({ name: 'atendimento' })
-    }
-  } catch (error) {
-    console.error(error)
-    $q.notify({
-      type: 'negative',
-      message: 'Ocorreu um erro ao iniciar o atendimento!',
-      caption: error.message
-    })
-  }
-  loading.value = false
-}
-
-onUnmounted(() => {
-  contatoSelecionado.value = null
-})
+const {
+  contatoSelecionado,
+  contatos,
+  modalContato,
+  loading,
+  fecharModal,
+  localizarContato,
+  contatoCriadoNotoTicket,
+  criarTicket
+} = useNovoTicket()
 </script>
-
-<style lang="scss" scoped>
-</style>

@@ -147,19 +147,24 @@
       <q-item-section avatar class="q-px-none">
         <q-btn 
           flat
-          @click="espiarAtendimento(ticket)"
           push
           color="primary"
           dense
           round
           v-if="!$q.screen.xs && (ticket.status === 'pending' || (buscaTicket && ticket.status === 'pending'))"
           class="q-mr-md"
+          @click="espiarAtendimento(ticket)"
         >
           <q-dialog v-model="isTicketModalOpen">
             <q-card :style="cardStyle">
               <q-card-section class="row items-center justify-between">
                 <div class="text-h6">{{ 'Espiar Atendimento: ' + currentTicket.id}}</div>
-                <q-btn icon="close" flat round @click="closeModal" />
+                <q-btn 
+                  icon="close" 
+                  flat 
+                  round 
+                  @click="closeModal" 
+                />
               </q-card-section>
               <q-card-section>
                 <MensagemChat :mensagens="currentTicket.messages" />
@@ -180,10 +185,10 @@
 import { ref, onMounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import MensagemChat from '../../components/atendimento/ConversationMessage.vue'
-import { useTicket } from '../../composables/atendimento/useTicket'
-import { useTicketModal } from '../../composables/atendimento/useTicketModal'
-import { useTicketStatus } from '../../composables/atendimento/useTicketStatus'
-import { useAtendimentoTicketStore } from '../../stores'
+import { useTicket } from 'src/composables/atendimento/useTicket'
+import { useTicketModal } from 'src/composables/atendimento/useTicketModal'
+import { useTicketStatus } from 'src/composables/atendimento/useTicketStatus'
+import { useAtendimentoTicketStore } from 'src/stores'
 
 const props = defineProps({
   ticket: {
@@ -215,7 +220,8 @@ const {
   dataInWords, 
   obterInformacoes, 
   abrirChatContato, 
-  obterNomeFila 
+  obterNomeFila,
+  setupTicketSubscription
 } = useTicket()
 
 const {
@@ -234,48 +240,40 @@ const walletsDoTicket = ref([])
 
 // Lifecycle hooks
 onMounted(async () => {
-  tagsDoTicket.value = await obterInformacoes(props.ticket, 'tags')
-  walletsDoTicket.value = await obterInformacoes(props.ticket, 'carteiras')
+  await setupTicketSubscription(props.ticket)
 })
 
 // Watchers
-watch(() => ticketStore.getTicketFocado, async (newTicket) => {
+watch(() => ticketStore.getTicketFocado, newTicket => {
   if (newTicket?.contactId === props.ticket.contactId) {
-    tagsDoTicket.value = await obterInformacoes(props.ticket, 'tags')
-    walletsDoTicket.value = await obterInformacoes(props.ticket, 'carteiras')
+    tagsDoTicket.value = obterInformacoes(props.ticket, 'tags')
+    walletsDoTicket.value = obterInformacoes(props.ticket, 'carteiras')
   }
 }, { deep: true })
 </script>
 
 <style lang="sass">
-.ticket-active-item {
-  border-radius: 0;
-  position: relative;
-  height: 100%;
-  background: $blue-1;
-}
+.ticket-active-item
+  border-radius: 0
+  position: relative
+  height: 100%
+  background: $blue-1
 
-.ticketNotAnswered {
-  border-left: 5px solid $warning !important;
-}
+.ticketNotAnswered
+  border-left: 5px solid $warning !important
 
-.ticket-unread {
-  animation: pulse-red 1.5s infinite;
-  background-color: rgba(255, 0, 0, 0.1);
-}
+.ticket-unread
+  animation: pulse-red 1.5s infinite
+  background-color: rgba(255, 0, 0, 0.1)
 
-@keyframes pulse-red {
-  0% {
-    background-color: rgba(255, 0, 0, 0.1);
-    transform: scale(1);
-  }
-  50% {
-    background-color: rgba(255, 0, 0, 0.3);
-    transform: scale(1.02);
-  }
-  100% {
-    background-color: rgba(255, 0, 0, 0.1);
-    transform: scale(1);
-  }
-}
+@keyframes pulse-red
+  0%
+    background-color: rgba(255, 0, 0, 0.1)
+    transform: scale(1)
+  50%
+    background-color: rgba(255, 0, 0, 0.3)
+    transform: scale(1.02)
+  100%
+    background-color: rgba(255, 0, 0, 0.1)
+    transform: scale(1)
 </style>

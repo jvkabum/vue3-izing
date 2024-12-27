@@ -12,7 +12,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useContato } from '../../composables/useContato'
+import { useContato } from 'src/composables/atendimento/useContato'
 
 const props = defineProps({
   mensagem: {
