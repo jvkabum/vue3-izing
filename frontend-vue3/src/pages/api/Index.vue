@@ -16,7 +16,11 @@
       </q-card-section>
       <q-separator />
       <q-card-section class="scroll" style="height: calc(100vh - 200px)">
-        <q-item v-for="api in apis" :key="api.token" class="q-my-md shadow-2">
+        <q-item 
+          v-for="api in apis" 
+          :key="api.token" 
+          class="q-my-md shadow-2"
+        >
           <q-item-section top>
             <q-item-label class="text-bold text-h6 q-my-sm">
               Nome: {{ api.name }}
@@ -28,11 +32,9 @@
                   dense
                   round
                   icon="mdi-content-copy"
-                  @click="copy(api.token)"
+                  @click="handleCopyToken(api.token)"
                 >
-                  <q-tooltip>
-                    Copiar token
-                  </q-tooltip>
+                  <q-tooltip>Copiar token</q-tooltip>
                 </q-btn>
                 <q-btn
                   class="gt-xs"
@@ -41,11 +43,9 @@
                   dense
                   round
                   icon="edit"
-                  @click="editarAPI(api)"
+                  @click="handleEditarAPI(api)"
                 >
-                  <q-tooltip>
-                    Editar Configuração
-                  </q-tooltip>
+                  <q-tooltip>Editar Configuração</q-tooltip>
                 </q-btn>
                 <q-btn
                   class="gt-xs"
@@ -54,11 +54,9 @@
                   dense
                   round
                   icon="mdi-autorenew"
-                  @click="gerarNovoToken(api)"
+                  @click="handleGerarNovoToken(api)"
                 >
-                  <q-tooltip>
-                    Gerar novo Token
-                  </q-tooltip>
+                  <q-tooltip>Gerar novo Token</q-tooltip>
                 </q-btn>
                 <q-btn
                   class="gt-xs"
@@ -67,18 +65,16 @@
                   dense
                   round
                   icon="delete"
-                  @click="deletarApi(api)"
+                  @click="handleDeletarApi(api)"
                 >
-                  <q-tooltip>
-                    Deletar Configuração
-                  </q-tooltip>
+                  <q-tooltip>Deletar Configuração</q-tooltip>
                 </q-btn>
               </div>
             </q-item-label>
             <q-item-label lines="4" style="word-break: break-all;">
               <p class="text-weight-medium text-nowrap q-pr-md">
                 <span class="text-bold">Url:</span>
-                {{ montarUrlIntegração(api.id) }}
+                {{ montarUrlIntegracao(api.id) }}
               </p>
             </q-item-label>
             <q-item-label style="word-break: break-all;">
@@ -89,12 +85,14 @@
             </q-item-label>
             <q-item-label caption>
               <p class="text-weight-medium">
-                <span class="text-bold">WebHook Status Whatsapp:</span> <span> {{ api.urlServiceStatus }} </span>
+                <span class="text-bold">WebHook Status Whatsapp:</span>
+                <span>{{ api.urlServiceStatus }}</span>
               </p>
             </q-item-label>
             <q-item-label caption>
               <p class="text-weight-medium">
-                <span class="text-bold">WebHook Status Mensagem:</span> <span> {{ api.urlMessageStatus }} </span>
+                <span class="text-bold">WebHook Status Mensagem:</span>
+                <span>{{ api.urlMessageStatus }}</span>
               </p>
             </q-item-label>
             <q-item-label style="word-break: break-all;">
@@ -109,146 +107,78 @@
     </q-card>
 
     <ModalApi
-      v-model:modalApi="modalApi"
-      v-model:apiEdicao="apiEdicao"
-      @modal-api:criada="apiCriada"
-      @modal-api:editada="apiEditada"
+      :modal-api="modalApi"
+      :api-edicao="apiEdicao"
+      :c-sessions="[]"
+      @update:modal-api="modalApi = $event"
+      @update:api-edicao="apiEdicao = $event"
+      @modal-api-criada="apiCriada"
+      @modal-api-editada="apiEditada"
     />
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { ref, onMounted } from 'vue'
-import { ListarAPIs, ApagarAPI, NovoTokenAPI } from 'src/service/api'
-import { copyToClipboard, useQuasar } from 'quasar'
+import { copyToClipboard } from 'quasar'
+import { useApiConfig } from 'src/composables/api/useApiConfig'
+import { useApiNotification } from 'src/composables/api/useApiNotification'
 import ModalApi from './ModalApi.vue'
 
-interface Api {
-  id: number
-  name: string
-  token: string
-  urlServiceStatus: string
-  urlMessageStatus: string
-  authToken: string
-}
+const userProfile = ref('user')
+const apiEdicao = ref({})
+const modalApi = ref(false)
 
-const $q = useQuasar()
-const userProfile = ref<string>('user')
-const apiEdicao = ref<Partial<Api>>({})
-const modalApi = ref<boolean>(false)
-const apis = ref<Api[]>([])
-const loading = ref<boolean>(false)
+const {
+  apis,
+  listarAPIs,
+  apagarAPI,
+  gerarNovoToken
+} = useApiConfig()
 
-const montarUrlIntegração = (id: number): string => {
-  // Implemente a lógica de montagem da URL aqui
-  return `https://sua-api.com/integration/${id}`
-}
+const {
+  notifyTokenCopied,
+  notifyTokenCopyError
+} = useApiNotification()
+
+const montarUrlIntegracao = id => `https://sua-api.com/integration/${id}`
 
 const openAddDialog = () => {
   apiEdicao.value = {}
   modalApi.value = true
 }
 
-const listarAPIs = async (): Promise<void> => {
-  try {
-    const { data } = await ListarAPIs()
-    apis.value = data.apis
-  } catch (error) {
-    $q.notify({
-      type: 'negative',
-      message: 'Erro ao carregar as APIs'
-    })
-  }
-}
-
-const copy = (text: string): void => {
+const handleCopyToken = text => {
   copyToClipboard(text)
-    .then(() => {
-      $q.notify({
-        type: 'positive',
-        message: 'Token copiado!'
-      })
-    })
-    .catch(() => {
-      $q.notify({
-        type: 'negative',
-        message: 'Erro ao copiar token'
-      })
-    })
+    .then(() => notifyTokenCopied())
+    .catch(() => notifyTokenCopyError())
 }
 
-const apiCriada = (api: Api): void => {
+const apiCriada = api => {
   apis.value.push(api)
 }
 
-const apiEditada = (api: Api): void => {
+const apiEditada = api => {
   const idx = apis.value.findIndex(f => f.id === api.id)
   if (idx > -1) {
     apis.value[idx] = api
   }
 }
 
-const editarAPI = (api: Api): void => {
+const handleEditarAPI = api => {
   apiEdicao.value = { ...api }
   modalApi.value = true
 }
 
-const gerarNovoToken = async (api: Api): Promise<void> => {
-  const confirm = await $q.dialog({
-    title: 'Atenção!!',
-    message: `Deseja realmente gerar novo token para "${api.name}"? Lembre que as integrações que utilizam atual irão parar de funcionar até que atualize o token onde for necessário.`,
-    cancel: { label: 'Não', color: 'primary', push: true },
-    ok: { label: 'Sim', color: 'negative', push: true },
-    persistent: true
-  })
-
-  if (confirm) {
-    loading.value = true
-    try {
-      const { data } = await NovoTokenAPI(api)
-      apiEditada(data)
-      $q.notify({
-        type: 'positive',
-        message: 'Token atualizado!'
-      })
-    } catch (error) {
-      $q.notify({
-        type: 'negative',
-        message: 'Não foi possível atualizar o token'
-      })
-    } finally {
-      loading.value = false
-    }
+const handleGerarNovoToken = async api => {
+  const updatedApi = await gerarNovoToken(api)
+  if (updatedApi) {
+    apiEditada(updatedApi)
   }
 }
 
-const deletarApi = async (api: Api): Promise<void> => {
-  const confirm = await $q.dialog({
-    title: 'Atenção!!',
-    message: `Deseja realmente deletar "${api.name}"?`,
-    cancel: { label: 'Não', color: 'primary', push: true },
-    ok: { label: 'Sim', color: 'negative', push: true },
-    persistent: true
-  })
-
-  if (confirm) {
-    loading.value = true
-    try {
-      await ApagarAPI(api)
-      apis.value = apis.value.filter(a => a.id !== api.id)
-      $q.notify({
-        type: 'positive',
-        message: `${api.name} deletada!`
-      })
-    } catch (error) {
-      $q.notify({
-        type: 'negative',
-        message: `Não foi possível deletar ${api.name}`
-      })
-    } finally {
-      loading.value = false
-    }
-  }
+const handleDeletarApi = async api => {
+  await apagarAPI(api)
 }
 
 onMounted(() => {

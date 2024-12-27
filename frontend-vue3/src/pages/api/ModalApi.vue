@@ -99,52 +99,53 @@
         />
       </q-card-section>
       <q-card-actions align="right" class="q-mt-md">
-        <q-btn rounded label="Cancelar" color="negative" v-close-popup class="q-mr-md" />
-        <q-btn rounded label="Salvar" color="positive" @click="handleAPI" :loading="loading" />
+        <q-btn
+          rounded
+          label="Cancelar"
+          color="negative"
+          v-close-popup
+          class="q-mr-md"
+        />
+        <q-btn
+          rounded
+          label="Salvar"
+          color="positive"
+          @click="handleAPI"
+          :loading="loading"
+        />
       </q-card-actions>
     </q-card>
   </q-dialog>
 </template>
 
-<script setup lang="ts">
-import { ref, computed } from 'vue'
-import { useVuelidate } from '@vuelidate/core'
-import { required, url } from '@vuelidate/validators'
-import { CriarAPI, EditarAPI } from 'src/service/api'
-import { useQuasar } from 'quasar'
+<script setup>
+import { ref } from 'vue'
+import { useApiConfig } from 'src/composables/api/useApiConfig'
+import { useApiValidation } from 'src/composables/api/useApiValidation'
 
-interface Api {
-  id: number | null
-  name: string | null
-  sessionId: number | null
-  urlServiceStatus: string | null
-  urlMessageStatus: string | null
-  authToken: string | null
-  isActive: boolean
-}
+const props = defineProps({
+  modalApi: {
+    type: Boolean,
+    required: true
+  },
+  apiEdicao: {
+    type: Object,
+    required: true
+  },
+  cSessions: {
+    type: Array,
+    required: true
+  }
+})
 
-interface Session {
-  id: number
-  name: string
-}
+const emit = defineEmits([
+  'update:modal-api',
+  'update:api-edicao',
+  'modal-api-criada',
+  'modal-api-editada'
+])
 
-const props = defineProps<{
-  modalApi: boolean
-  apiEdicao: Partial<Api>
-  cSessions: Session[]
-}>()
-
-const emit = defineEmits<{
-  'update:modalApi': [value: boolean]
-  'update:apiEdicao': [value: Partial<Api>]
-  'modal-api:criada': [api: Api]
-  'modal-api:editada': [api: Api]
-}>()
-
-const $q = useQuasar()
-const loading = ref(false)
-
-const api = ref<Api>({
+const api = ref({
   id: null,
   name: null,
   sessionId: null,
@@ -154,20 +155,8 @@ const api = ref<Api>({
   isActive: true
 })
 
-const rules = computed(() => ({
-  api: {
-    name: { required },
-    sessionId: { required },
-    urlServiceStatus: { 
-      isValidURL: (v: string) => !v || url(v)
-    },
-    urlMessageStatus: { 
-      isValidURL: (v: string) => !v || url(v)
-    }
-  }
-}))
-
-const v$ = useVuelidate(rules, { api })
+const { v$ } = useApiValidation({ api })
+const { criarAPI, editarAPI, loading } = useApiConfig()
 
 const resetarApi = () => {
   api.value = {
@@ -184,13 +173,13 @@ const resetarApi = () => {
 const fecharModal = () => {
   resetarApi()
   v$.value.$reset()
-  emit('update:apiEdicao', { id: null })
-  emit('update:modalApi', false)
+  emit('update:api-edicao', { id: null })
+  emit('update:modal-api', false)
 }
 
 const abrirModal = () => {
   if (props.apiEdicao.id) {
-    api.value = { ...props.apiEdicao } as Api
+    api.value = { ...props.apiEdicao }
   } else {
     resetarApi()
   }
@@ -200,31 +189,17 @@ const handleAPI = async () => {
   const isValid = await v$.value.$validate()
   if (!isValid) return
 
-  loading.value = true
   try {
     if (api.value.id) {
-      const { data } = await EditarAPI(api.value)
-      emit('modal-api:editada', data)
-      $q.notify({
-        type: 'positive',
-        message: 'API atualizada com sucesso!'
-      })
+      const data = await editarAPI(api.value)
+      emit('modal-api-editada', data)
     } else {
-      const { data } = await CriarAPI(api.value)
-      emit('modal-api:criada', data)
-      $q.notify({
-        type: 'positive',
-        message: 'API criada com sucesso!'
-      })
+      const data = await criarAPI(api.value)
+      emit('modal-api-criada', data)
     }
     fecharModal()
   } catch (error) {
-    $q.notify({
-      type: 'negative',
-      message: 'Erro ao salvar API'
-    })
-  } finally {
-    loading.value = false
+    console.error('Erro ao salvar API:', error)
   }
 }
 </script>
