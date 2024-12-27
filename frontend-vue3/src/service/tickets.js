@@ -1,96 +1,53 @@
-import request from 'src/service/request'
+import { api } from './api'
 
-export function ConsultarTickets (params) {
-  return request({
-    url: '/tickets',
-    method: 'get',
-    params
-  })
+export async function EnviarMensagemTexto(ticketId, data) {
+  return api.post(`/tickets/${ticketId}/messages`, data)
 }
 
-export function ConsultarDadosTicket (params) {
-  return request({
-    url: `/tickets/${params.id}`,
-    method: 'get',
-    params
-  })
+export async function ListarTickets(params) {
+  return api.get('/tickets', { params })
 }
 
-export function ConsultarLogsTicket (params) {
-  return request({
-    url: `/tickets/${params.ticketId}/logs`,
-    method: 'get',
-    params
-  })
+export async function BuscarTicket(id) {
+  return api.get(`/tickets/${id}`)
 }
 
-export function AtualizarStatusTicket (ticketId, status, userId) {
-  return request({
-    url: `/tickets/${ticketId}`,
-    method: 'put',
-    data: {
-      status,
-      userId
-    }
-  })
+export async function ListarMensagens(ticketId, params) {
+  return api.get(`/tickets/${ticketId}/messages`, { params })
 }
 
-export function AtualizarTicket (ticketId, data) {
-  return request({
-    url: `/tickets/${ticketId}`,
-    method: 'put',
-    data
-  })
+export async function MarcarMensagensComoLidas(ticketId) {
+  return api.put(`/tickets/${ticketId}/messages/read`)
 }
 
-export function LocalizarMensagens (params) {
-  return request({
-    url: `/messages/${params.ticketId}`,
-    method: 'get',
-    params
-  })
+export async function AtualizarStatus(ticketId, status) {
+  return api.put(`/tickets/${ticketId}/status`, { status })
 }
 
-export function EnviarMensagemTexto (ticketId, data) {
-  return request({
-    url: `/messages/${ticketId}`,
-    method: 'post',
-    data
-  })
+export async function AtualizarFila(ticketId, queueId) {
+  return api.put(`/tickets/${ticketId}/queue`, { queueId })
 }
 
-export function EncaminharMensagem (messages, contato) {
-  const data = {
-    messages,
-    contact: contato
-  }
-  return request({
-    url: '/forward-messages/',
-    method: 'post',
-    data
-  })
+export async function AtualizarUsuario(ticketId, userId) {
+  return api.put(`/tickets/${ticketId}/user`, { userId })
 }
 
-export function DeletarMensagem (mensagem) {
-  return request({
-    url: `/messages/${mensagem.messageId}`,
-    method: 'delete',
-    data: mensagem
-  })
+export async function AtualizarTags(ticketId, tags) {
+  return api.put(`/tickets/${ticketId}/tags`, { tags })
 }
 
-export function CriarTicket (data) {
-  return request({
-    url: '/tickets',
-    method: 'post',
-    data
-  })
+export async function AtualizarNotas(ticketId, notes) {
+  return api.put(`/tickets/${ticketId}/notes`, { notes })
 }
 
-export function EditarMensagem (mensagem) {
-  return request({
-    url: `/messages/edit/${mensagem.messageId}`,
-    method: 'post',
-    data: mensagem
-  })
+export async function AtualizarCamposPersonalizados(ticketId, customFields) {
+  return api.put(`/tickets/${ticketId}/custom-fields`, { customFields })
+}
+
+export async function DeletarTicket(id) {
+  return api.delete(`/tickets/${id}`)
+}
+
+export async function DeletarMensagem(ticketId, messageId) {
+  return api.delete(`/tickets/${ticketId}/messages/${messageId}`)
 }

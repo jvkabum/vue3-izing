@@ -1,77 +1,106 @@
 <template>
-  <div class="q-pa-md bg-video">
-    <video autoplay muted loop class="video-background">
-      <source src="../assets/110694.mp4" type="video/mp4" />
-    </video>
-    <div class="overlay"></div>
+  <div class="login-page">
+    <!-- Background Video -->
+    <div class="bg-video">
+      <video autoplay muted loop class="video-background">
+        <source src="../assets/110694.mp4" type="video/mp4" />
+      </video>
+      <div class="overlay" />
+    </div>
+
+    <!-- Login Form -->
     <q-layout class="vertical-center">
       <q-page-container>
         <q-page class="flex justify-end items-center">
-          <q-ajax-bar position="top"
-            color="primary"
-            size="5px" />
-          <q-card bordered
-            class="card q-pa-md shadow-10"
-            style="border-top: 5px solid #3E72AF; background-color: rgba(255,255,255,0.75); border-radius: 20px">
+          <!-- Loading Bar -->
+          <q-ajax-bar position="top" color="primary" size="5px" />
+
+          <!-- Login Card -->
+          <q-card bordered class="login-card q-pa-md shadow-10">
+            <!-- Header -->
             <q-card-section class="text-primary text-center">
+              <div class="text-h6">Bem-vindo!</div>
             </q-card-section>
-            <q-card-section class="text-primary">
-              <div class="text-h6">Bem vindo!</div>
-            </q-card-section>
+
+            <!-- Form -->
             <q-card-section>
-              <q-input class="q-mb-md"
-                clearable
+              <!-- Email -->
+              <q-input 
                 v-model="form.email"
-                placeholder="meu@email.com"
-                @blur="$v.form.email.$touch"
-                :error="$v.form.email.$error"
-                error-message="Deve ser um e-mail válido."
+                class="q-mb-md"
                 outlined
-                @keypress.enter="fazerLogin">
-                <template v-slot:prepend>
-                  <q-icon name="mdi-email-outline"
-                    class="cursor-pointer"
-                    color='primary' />
+                clearable
+                placeholder="meu@email.com"
+                :error="v$.form.email.$error"
+                :error-message="v$.form.email.$errors[0]?.$message"
+                @keypress.enter="fazerLogin"
+              >
+                <template #prepend>
+                  <q-icon name="mdi-email-outline" class="cursor-pointer" color="primary">
+                    <q-tooltip>E-mail</q-tooltip>
+                  </q-icon>
                 </template>
               </q-input>
 
-              <q-input outlined
+              <!-- Password -->
+              <q-input 
                 v-model="form.password"
+                outlined
                 :type="isPwd ? 'password' : 'text'"
-                @keypress.enter="fazerLogin">
-                <template v-slot:prepend>
-                  <q-icon name="mdi-shield-key-outline"
-                    class="cursor-pointer"
-                    color='primary' />
+                :error="v$.form.password.$error"
+                :error-message="v$.form.password.$errors[0]?.$message"
+                @keypress.enter="fazerLogin"
+              >
+                <template #prepend>
+                  <q-icon name="mdi-shield-key-outline" class="cursor-pointer" color="primary">
+                    <q-tooltip>Senha</q-tooltip>
+                  </q-icon>
                 </template>
-                <template v-slot:append>
-                  <q-icon :name="isPwd ? 'visibility_off' : 'visibility'"
+                <template #append>
+                  <q-icon
+                    :name="isPwd ? 'visibility_off' : 'visibility'"
                     class="cursor-pointer"
-                    @click="isPwd = !isPwd" />
+                    @click="isPwd = !isPwd"
+                  >
+                    <q-tooltip>{{ isPwd ? 'Mostrar senha' : 'Ocultar senha' }}</q-tooltip>
+                  </q-icon>
                 </template>
               </q-input>
             </q-card-section>
+
+            <!-- Actions -->
             <q-card-actions>
               <q-space />
-              <q-btn class="q-mr-sm q-my-lg"
-                style="width: 150px"
+              
+              <!-- Login Button -->
+              <q-btn
                 color="primary"
                 :loading="loading"
-                @click="fazerLogin">
-                Login
-                <span slot="loading">
-                  <q-spinner-puff class="on-left" />Logando...
-                </span>
+                class="q-mr-sm q-my-lg action-btn"
+                @click="fazerLogin"
+              >
+                <template #default>Login</template>
+                <template #loading>
+                  <q-spinner-puff class="on-left" />
+                  Logando...
+                </template>
               </q-btn>
-              <q-btn class="q-my-lg"
-                style="width: 200px"
+
+              <!-- Clear Cache Button -->
+              <q-btn
                 color="primary"
-                @click="clearCache">
+                class="q-my-lg action-btn"
+                @click="clearCache"
+              >
                 Limpar Cache
+                <q-tooltip>Limpar dados do navegador</q-tooltip>
               </q-btn>
             </q-card-actions>
 
-            <q-inner-loading :showing="loading" />
+            <!-- Loading -->
+            <q-inner-loading :showing="loading">
+              <q-spinner-dots size="50px" color="primary" />
+            </q-inner-loading>
           </q-card>
         </q-page>
       </q-page-container>
@@ -79,100 +108,128 @@
   </div>
 </template>
 
-<script>
-import { required, email } from 'vuelidate/lib/validators'
+<script setup>
+import { useAuth } from '../composables/auth/useAuth'
 
-export default {
-  name: 'Login',
-  data () {
-    return {
-      modalEsqueciSenha: false,
-      emailRedefinicao: null,
-      form: {
-        email: null,
-        password: null
-      },
-      contasCliente: {},
-      isPwd: true,
-      loading: false
-    }
-  },
-  validations: {
-    form: {
-      email: { required, email },
-      password: { required }
-    },
-    emailRedefinicao: { required, email }
-  },
-  methods: {
-    fazerLogin () {
-      this.$v.form.$touch()
-      if (this.$v.form.$error) {
-        this.$q.notify('Informe usuário e senha corretamente.')
-        return
-      }
-      this.loading = true
-      this.$store.dispatch('UserLogin', this.form)
-        .then(data => {
-          this.loading = false
-        })
-        .catch(err => {
-          console.error('exStore', err)
-          this.loading = false
-        })
-    },
-    clearCache () {
-      if (window.caches) {
-        caches.keys().then(names => {
-          for (const name of names) caches.delete(name)
-        })
-      }
-      localStorage.clear()
-      sessionStorage.clear()
-      this.$q.notify('Cache do navegador limpo.')
-    }
-  },
-  mounted () {
-  }
-}
+// Composables
+const {
+  form,
+  isPwd,
+  loading,
+  v$,
+  fazerLogin,
+  clearCache
+} = useAuth()
 </script>
 
-<style scoped>
-.bg-video {
-  position: relative;
-  height: 100vh;
-  overflow: hidden;
+<style lang="scss" scoped>
+.login-page {
+  // Background
+  .bg-video {
+    position: relative;
+    height: 100vh;
+    overflow: hidden;
+
+    .video-background {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: -1;
+    }
+
+    .overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1;
+    }
+  }
+
+  // Layout
+  .q-layout {
+    position: relative;
+    z-index: 2;
+  }
+
+  // Card
+  .login-card {
+    width: 100%;
+    max-width: 430px;
+    background-color: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(10px);
+    border-top: 5px solid #3E72AF;
+    border-radius: 20px;
+    transition: all 0.3s ease;
+
+    &:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    }
+
+    // Inputs
+    .q-input {
+      .q-field__control {
+        transition: all 0.3s ease;
+
+        &:hover {
+          border-color: var(--q-primary);
+        }
+      }
+
+      .q-icon {
+        transition: all 0.3s ease;
+
+        &:hover {
+          transform: scale(1.1);
+        }
+      }
+    }
+
+    // Botões
+    .action-btn {
+      min-width: 150px;
+      opacity: 0.9;
+      transition: all 0.3s ease;
+
+      &:hover {
+        opacity: 1;
+        transform: scale(1.05);
+      }
+    }
+  }
 }
 
-.video-background {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  z-index: -1;
+// Tema escuro
+:deep(.body--dark) {
+  .login-page {
+    .login-card {
+      background-color: rgba(30, 30, 30, 0.75);
+    }
+  }
 }
 
-.overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 1;
-}
+// Responsividade
+@media (max-width: 599px) {
+  .login-page {
+    .login-card {
+      margin: 16px;
+      max-width: calc(100% - 32px);
 
-.q-layout {
-  position: relative;
-  z-index: 2;
-}
+      .q-card-actions {
+        flex-direction: column;
 
-.card {
-  width: 100%;
-  max-width: 430px;
-  background-color: rgba(255, 255, 255, 0.7);
-  z-index: 3;
+        .action-btn {
+          width: 100%;
+          margin: 8px 0;
+        }
+      }
+    }
+  }
 }
 </style>

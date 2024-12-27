@@ -1,82 +1,91 @@
+/* eslint-env node */
+require('@rushstack/eslint-patch/modern-module-resolution')
+
 module.exports = {
-  // https://eslint.org/docs/user-guide/configuring#configuration-cascading-and-hierarchy
-  // This option interrupts the configuration hierarchy at this file
-  // Remove this if you have an higher level ESLint config file (it usually happens into a monorepos)
   root: true,
-
-  parserOptions: {
-    parser: 'babel-eslint',
-    ecmaVersion: 2018, // Allows for the parsing of modern ECMAScript features
-    sourceType: 'module' // Allows for the use of imports
-  },
-
   env: {
-    browser: true
+    browser: true,
+    es2021: true,
+    node: true,
+    'vue/setup-compiler-macros': true
   },
-
-  // Rules order is important, please avoid shuffling them
   extends: [
-    // Base ESLint recommended rules
-    // 'eslint:recommended',
-
-
-    // Uncomment any of the lines below to choose desired strictness,
-    // but leave only one uncommented!
-    // See https://eslint.vuejs.org/rules/#available-rules
-    'plugin:vue/essential', // Priority A: Essential (Error Prevention)
-    // 'plugin:vue/strongly-recommended', // Priority B: Strongly Recommended (Improving Readability)
-    // 'plugin:vue/recommended', // Priority C: Recommended (Minimizing Arbitrary Choices and Cognitive Overhead)
-
-    'standard'
-
+    'plugin:vue/vue3-essential',
+    'plugin:vue/vue3-strongly-recommended',
+    'plugin:vue/vue3-recommended',
+    'eslint:recommended',
+    '@vue/eslint-config-typescript',
+    '@vue/eslint-config-prettier/skip-formatting'
   ],
-
-  plugins: [
-    // https://eslint.vuejs.org/user-guide/#why-doesn-t-it-work-on-vue-file
-    // required to lint *.vue files
-    'vue',
-
-  ],
-
-  globals: {
-    ga: true, // Google Analytics
-    cordova: true,
-    __statics: true,
-    process: true,
-    Capacitor: true,
-    chrome: true
+  parserOptions: {
+    ecmaVersion: 'latest',
+    sourceType: 'module'
   },
-
-  // add your custom rules here
+  plugins: ['vue'],
   rules: {
-    // allow async-await
-    'generator-star-spacing': 'off',
-    // allow paren-less arrow functions
-    'arrow-parens': 'off',
-    'one-var': 'off',
-    'eqeqeq': 0,
-    'camelcase': "off",
-    'import/first': 'off',
-    'import/named': 'error',
-    'import/namespace': 'error',
-    'import/default': 'error',
-    'import/export': 'error',
-    'import/extensions': 'off',
-    'import/no-unresolved': 'off',
-    'import/no-extraneous-dependencies': 'off',
-    'prefer-promise-reject-errors': 'off',
-    "no-use-v-if-with-v-for": 0,
-    "vue/no-use-v-if-with-v-for": [
-      "error",
-      {
-        allowUsingIterationVar: true
-      }
-    ],
+    // Vue
+    'vue/script-setup-uses-vars': 'error',
+    'vue/no-unused-vars': 'error',
+    'vue/component-name-in-template-casing': ['error', 'PascalCase'],
+    'vue/component-definition-name-casing': ['error', 'PascalCase'],
+    'vue/custom-event-name-casing': ['error', 'kebab-case'],
+    'vue/define-macros-order': ['error', {
+      order: ['defineProps', 'defineEmits']
+    }],
+    'vue/html-closing-bracket-newline': ['error', {
+      singleline: 'never',
+      multiline: 'always'
+    }],
+    'vue/html-indent': ['error', 2],
+    'vue/max-attributes-per-line': ['error', {
+      singleline: 3,
+      multiline: 1
+    }],
+    'vue/multi-word-component-names': 'off',
+    'vue/no-setup-props-destructure': 'off',
+    'vue/no-v-html': 'off',
+    'vue/require-default-prop': 'off',
+    'vue/require-explicit-emits': 'off',
 
-    // allow console.log during development only
-    "no-console": 0,
+    // JavaScript/TypeScript
+    'no-console': process.env.NODE_ENV === 'production' ? 'warn' : 'off',
+    'no-debugger': process.env.NODE_ENV === 'production' ? 'warn' : 'off',
+    'no-unused-vars': ['error', { 
+      argsIgnorePattern: '^_',
+      varsIgnorePattern: '^_'
+    }],
+    'no-undef': 'error',
+    'no-var': 'error',
+    'prefer-const': 'error',
+    'arrow-body-style': ['error', 'as-needed'],
+    'arrow-parens': ['error', 'as-needed'],
+    'object-shorthand': ['error', 'always'],
+    'prefer-template': 'error',
+    'template-curly-spacing': ['error', 'never'],
+    'quotes': ['error', 'single', { 
+      avoidEscape: true,
+      allowTemplateLiterals: true 
+    }],
+    'semi': ['error', 'never'],
+    'comma-dangle': ['error', 'never'],
+    'indent': ['error', 2, { 
+      SwitchCase: 1,
+      ignoredNodes: ['TemplateLiteral'] 
+    }],
 
-    // allow debugger during development only
-    'no-debugger': process.env.NODE_ENV === 'production' ? 'error' : 'off'
+    // TypeScript
+    '@typescript-eslint/explicit-function-return-type': 'off',
+    '@typescript-eslint/explicit-module-boundary-types': 'off',
+    '@typescript-eslint/no-explicit-any': 'off',
+    '@typescript-eslint/no-unused-vars': ['error', {
+      argsIgnorePattern: '^_',
+      varsIgnorePattern: '^_'
+    }]
+  },
+  globals: {
+    defineProps: 'readonly',
+    defineEmits: 'readonly',
+    defineExpose: 'readonly',
+    withDefaults: 'readonly'
   }
 }

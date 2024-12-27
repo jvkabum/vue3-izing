@@ -1,55 +1,27 @@
 <template>
   <div>
     <div class="timerBox">
-      <span>{{ addZero(timer.minutes)}}:{{addZero(timer.seconds)}}</span>
+      <span>{{ displayTime }}</span>
     </div>
   </div>
 </template>
 
-<script>
-export default {
-  name: 'RecordingTimer',
-  data () {
-    return {
-      timer: {
-        minutes: 0,
-        seconds: 0
-      }
-    }
-  },
-  methods: {
-    interval () {
-      setInterval(() => {
-        if (this.timer.seconds === 59) {
-          this.timer = {
-            ...this.timer,
-            minutes: this.timer.minutes + 1,
-            seconds: 0
-          }
-        }
-        this.timer = {
-          ...this.timer,
-          seconds: this.timer.seconds + 1
-        }
-      }, 1000)
-    },
-    stopInteval () {
-      clearInterval(this.interval)
-    },
-    addZero (n) {
-      return n < 10 ? '0' + n : n
-    }
-  },
-  mounted () {
-    this.interval()
-  },
-  destroyed () {
-    this.stopInteval()
-  }
-}
+<script setup>
+import { onMounted, onUnmounted } from 'vue'
+import { useTimer } from 'src/composables/atendimento/useTimer'
+
+const { displayTime, startTimer, stopTimer } = useTimer()
+
+onMounted(() => {
+  startTimer()
+})
+
+onUnmounted(() => {
+  stopTimer()
+})
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .timerBox {
   width: 45px;
   text-align: center;

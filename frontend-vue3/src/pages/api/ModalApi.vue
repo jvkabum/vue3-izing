@@ -1,7 +1,7 @@
 <template>
   <q-dialog
     persistent
-    :value="modalApi"
+    :model-value="modalApi"
     @hide="fecharModal"
     @show="abrirModal"
   >
@@ -10,7 +10,7 @@
       class="q-pa-lg"
     >
       <q-card-section>
-        <div class="text-h6">{{  apiEdicao.id ? 'Editar' : 'Criar'  }} Configuração API</div>
+        <div class="text-h6">{{ apiEdicao.id ? 'Editar' : 'Criar' }} Configuração API</div>
       </q-card-section>
       <q-card-section>
         <fieldset class="q-pa-md full-width rounded-all">
@@ -23,8 +23,9 @@
                 outlined
                 v-model="api.name"
                 label="Nome da API"
-                @blur="$v.api.name.$touch"
-                :error="$v.api.name.$error"
+                @blur="v$.api.name.$touch"
+                :error="v$.api.name.$error"
+                error-message="Nome é obrigatório"
               />
             </div>
             <div class="col-xs-12 col-sm-6">
@@ -41,13 +42,12 @@
                 :input-debounce="700"
                 option-value="id"
                 option-label="name"
-                @blur="$v.api.sessionId.$touch"
-                :error="$v.api.sessionId.$error"
+                @blur="v$.api.sessionId.$touch"
+                :error="v$.api.sessionId.$error"
                 input-style="width: 280px; max-width: 280px;"
-                error-message="Obrigatório"
+                error-message="Sessão é obrigatória"
               />
             </div>
-
           </div>
         </fieldset>
         <fieldset class="q-pa-md full-width q-mt-lg rounded-all">
@@ -59,8 +59,9 @@
                 dense
                 outlined
                 v-model="api.urlServiceStatus"
-                @blur="$v.api.urlServiceStatus.$touch"
-                :error="$v.api.urlServiceStatus.$error"
+                @blur="v$.api.urlServiceStatus.$touch"
+                :error="v$.api.urlServiceStatus.$error"
+                error-message="URL inválida"
                 label="URL WebHook Status Sessão"
                 hint="Dispara a ação sempre que o status da sessão conectada ao whatsapp é alterado."
               />
@@ -71,8 +72,9 @@
                 dense
                 outlined
                 v-model="api.urlMessageStatus"
-                @blur="$v.api.urlMessageStatus.$touch"
-                :error="$v.api.urlMessageStatus.$error"
+                @blur="v$.api.urlMessageStatus.$touch"
+                :error="v$.api.urlMessageStatus.$error"
+                error-message="URL inválida"
                 label="URL WebHook Status Mensagem"
                 hint="Dispara ação sempre que o status de uma mensagem é atualizado."
               />
@@ -96,124 +98,139 @@
           label="Ativo"
         />
       </q-card-section>
-      <q-card-actions
-        align="right"
-        class="q-mt-md"
-      >
-        <q-btn
-          rounded
-          label="Cancelar"
-          color="negative"
-          v-close-popup
-          class="q-mr-md"
-        />
-        <q-btn
-          rounded
-          label="Salvar"
-          color="positive"
-          @click="handleAPI"
-        />
+      <q-card-actions align="right" class="q-mt-md">
+        <q-btn rounded label="Cancelar" color="negative" v-close-popup class="q-mr-md" />
+        <q-btn rounded label="Salvar" color="positive" @click="handleAPI" :loading="loading" />
       </q-card-actions>
     </q-card>
   </q-dialog>
-
 </template>
 
-<script>
-import { mapGetters } from 'vuex'
-import { required, url } from 'vuelidate/lib/validators'
-const isValidURL = (v) => url(v) || !v
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import { useVuelidate } from '@vuelidate/core'
+import { required, url } from '@vuelidate/validators'
 import { CriarAPI, EditarAPI } from 'src/service/api'
-export default {
-  name: 'ModalFila',
-  props: {
-    modalApi: {
-      type: Boolean,
-      default: false
+import { useQuasar } from 'quasar'
+
+interface Api {
+  id: number | null
+  name: string | null
+  sessionId: number | null
+  urlServiceStatus: string | null
+  urlMessageStatus: string | null
+  authToken: string | null
+  isActive: boolean
+}
+
+interface Session {
+  id: number
+  name: string
+}
+
+const props = defineProps<{
+  modalApi: boolean
+  apiEdicao: Partial<Api>
+  cSessions: Session[]
+}>()
+
+const emit = defineEmits<{
+  'update:modalApi': [value: boolean]
+  'update:apiEdicao': [value: Partial<Api>]
+  'modal-api:criada': [api: Api]
+  'modal-api:editada': [api: Api]
+}>()
+
+const $q = useQuasar()
+const loading = ref(false)
+
+const api = ref<Api>({
+  id: null,
+  name: null,
+  sessionId: null,
+  urlServiceStatus: null,
+  urlMessageStatus: null,
+  authToken: null,
+  isActive: true
+})
+
+const rules = computed(() => ({
+  api: {
+    name: { required },
+    sessionId: { required },
+    urlServiceStatus: { 
+      isValidURL: (v: string) => !v || url(v)
     },
-    apiEdicao: {
-      type: Object,
-      default: () => {
-        return { id: null }
-      }
-    }
-  },
-  data () {
-    return {
-      api: {
-        id: null,
-        name: null,
-        sessionId: null,
-        urlServiceStatus: null,
-        urlMessageStatus: null,
-        authToken: null,
-        isActive: true
-      }
-    }
-  },
-  validations: {
-    api: {
-      name: { required },
-      sessionId: { required },
-      authToken: {},
-      urlServiceStatus: { isValidURL },
-      urlMessageStatus: { isValidURL }
-    }
-  },
-  computed: {
-    ...mapGetters(['whatsapps']),
-    cSessions () {
-      return this.whatsapps.filter(w => w.type === 'whatsapp' && !w.isDeleted)
-    }
-  },
-  methods: {
-    resetarApi () {
-      this.api = {
-        id: null,
-        queue: null,
-        isActive: true
-      }
-    },
-    fecharModal () {
-      this.resetarApi()
-      this.$emit('update:apiEdicao', { id: null })
-      this.$emit('update:modalApi', false)
-    },
-    abrirModal () {
-      if (this.apiEdicao.id) {
-        this.api = { ...this.apiEdicao }
-      } else {
-        this.resetarApi()
-      }
-    },
-    async handleAPI () {
-      this.$v.api.$touch()
-      if (this.$v.api.$error) {
-        this.$notificarErro('Verifique os campos obrigatórios e inconsistências.')
-        return
-      }
-      try {
-        this.loading = true
-        if (this.api.id) {
-          const { data } = await EditarAPI(this.api)
-          this.$emit('modal-api:editada', data)
-          this.$notificarSucesso('API Editada')
-        } else {
-          const { data } = await CriarAPI(this.api)
-          this.$emit('modal-api:criada', data)
-          this.$notificarSucesso('API criada')
-        }
-        this.loading = false
-        this.fecharModal()
-      } catch (error) {
-        console.error(error)
-        this.$notificarErro('Ocorreu um erro!', error)
-      }
+    urlMessageStatus: { 
+      isValidURL: (v: string) => !v || url(v)
     }
   }
+}))
 
+const v$ = useVuelidate(rules, { api })
+
+const resetarApi = () => {
+  api.value = {
+    id: null,
+    name: null,
+    sessionId: null,
+    urlServiceStatus: null,
+    urlMessageStatus: null,
+    authToken: null,
+    isActive: true
+  }
+}
+
+const fecharModal = () => {
+  resetarApi()
+  v$.value.$reset()
+  emit('update:apiEdicao', { id: null })
+  emit('update:modalApi', false)
+}
+
+const abrirModal = () => {
+  if (props.apiEdicao.id) {
+    api.value = { ...props.apiEdicao } as Api
+  } else {
+    resetarApi()
+  }
+}
+
+const handleAPI = async () => {
+  const isValid = await v$.value.$validate()
+  if (!isValid) return
+
+  loading.value = true
+  try {
+    if (api.value.id) {
+      const { data } = await EditarAPI(api.value)
+      emit('modal-api:editada', data)
+      $q.notify({
+        type: 'positive',
+        message: 'API atualizada com sucesso!'
+      })
+    } else {
+      const { data } = await CriarAPI(api.value)
+      emit('modal-api:criada', data)
+      $q.notify({
+        type: 'positive',
+        message: 'API criada com sucesso!'
+      })
+    }
+    fecharModal()
+  } catch (error) {
+    $q.notify({
+      type: 'negative',
+      message: 'Erro ao salvar API'
+    })
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 
 <style lang="scss" scoped>
+.rounded-all {
+  border-radius: 8px;
+}
 </style>

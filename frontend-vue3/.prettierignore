@@ -1,0 +1,84 @@
+# Dependências
+node_modules
+.pnp
+.pnp.js
+
+# Build
+dist
+dist-ssr
+*.local
+.quasar
+.output
+.build
+
+# Cache
+.cache
+.temp
+.eslintcache
+.stylelintcache
+*.tsbuildinfo
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+
+# Testes
+coverage
+*.lcov
+.nyc_output
+
+# Env
+.env
+.env.*
+!.env.example
+
+# PWA
+**/public/workbox-*.js
+**/public/sw.js
+**/public/fallback-*.js
+
+# Outros
+*.min.js
+*.min.css
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Gerados
+auto-imports.d.ts
+components.d.ts
+.eslintrc-auto-import.json
+
+# Específicos do projeto
+src/assets/**/*.svg
+src/assets/**/*.png
+src/assets/**/*.jpg
+src/assets/**/*.jpeg
+src/assets/**/*.gif
+src/assets/**/*.ico
+src/assets/**/*.webp
+src/assets/**/*.mp3
+src/assets/**/*.mp4
+src/assets/**/*.ogg
+src/assets/**/*.wav
+
+# Documentação
+*.md
+LICENSE

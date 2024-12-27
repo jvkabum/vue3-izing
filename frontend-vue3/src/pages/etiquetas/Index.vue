@@ -1,5 +1,5 @@
 <template>
-  <div v-if="userProfile === 'admin'">
+  <div v-if="userProfile === 'admin'" class="etiquetas-page">
     <q-table
       flat
       bordered
@@ -11,159 +11,198 @@
       :columns="columns"
       :loading="loading"
       row-key="id"
-      :pagination.sync="pagination"
+      :pagination="pagination"
       :rows-per-page-options="[0]"
     >
-      <template v-slot:top-right>
+      <!-- Botão Adicionar -->
+      <template #top-right>
         <q-btn
           color="primary"
+          icon="add"
           label="Adicionar"
           rounded
-          @click="etiquetaEdicao = {}; modalEtiqueta = true"
-        />
+          @click="handleAddEtiqueta"
+        >
+          <q-tooltip>Adicionar nova etiqueta</q-tooltip>
+        </q-btn>
       </template>
-      <template v-slot:body-cell-color="props">
+
+      <!-- Coluna Cor -->
+      <template #body-cell-color="props">
         <q-td class="text-center">
           <div
-            class="q-pa-sm rounded-borders"
+            class="color-preview rounded-borders q-pa-sm"
             :style="`background: ${props.row.color}`"
           >
             {{ props.row.color }}
           </div>
         </q-td>
       </template>
-      <template v-slot:body-cell-isActive="props">
+
+      <!-- Coluna Status -->
+      <template #body-cell-isActive="props">
         <q-td class="text-center">
           <q-icon
             size="24px"
             :name="props.value ? 'mdi-check-circle-outline' : 'mdi-close-circle-outline'"
             :color="props.value ? 'positive' : 'negative'"
-          />
+          >
+            <q-tooltip>
+              {{ props.value ? 'Ativa' : 'Inativa' }}
+            </q-tooltip>
+          </q-icon>
         </q-td>
       </template>
-      <template v-slot:body-cell-acoes="props">
+
+      <!-- Coluna Ações -->
+      <template #body-cell-acoes="props">
         <q-td class="text-center">
-          <q-btn
-            flat
-            round
-            icon="edit"
-            @click="editarEtiqueta(props.row)"
-          />
-          <q-btn
-            flat
-            round
-            icon="mdi-delete"
-            @click="deletarEtiqueta(props.row)"
-          />
+          <div class="row justify-center q-gutter-sm">
+            <!-- Editar -->
+            <q-btn
+              flat
+              round
+              icon="edit"
+              color="warning"
+              @click="editarEtiqueta(props.row)"
+            >
+              <q-tooltip>Editar etiqueta</q-tooltip>
+            </q-btn>
+
+            <!-- Excluir -->
+            <q-btn
+              flat
+              round
+              icon="delete"
+              color="negative"
+              @click="deletarEtiqueta(props.row)"
+            >
+              <q-tooltip>Excluir etiqueta</q-tooltip>
+            </q-btn>
+          </div>
         </q-td>
+      </template>
+
+      <!-- Loading -->
+      <template #loading>
+        <q-inner-loading showing color="primary">
+          <q-spinner-dots size="50px" color="primary" />
+        </q-inner-loading>
+      </template>
+
+      <!-- Sem Dados -->
+      <template #no-data>
+        <div class="full-width row flex-center q-pa-md text-grey-8">
+          <q-icon name="label" size="2em" class="q-mr-sm" />
+          Nenhuma etiqueta encontrada
+        </div>
       </template>
     </q-table>
+
+    <!-- Modal de Etiqueta -->
     <ModalEtiqueta
-      :modalEtiqueta.sync="modalEtiqueta"
-      :etiquetaEdicao.sync="etiquetaEdicao"
+      v-model="modalEtiqueta"
+      v-model:etiqueta-edicao="etiquetaEdicao"
       @modal-etiqueta:criada="etiquetaCriada"
       @modal-etiqueta:editada="etiquetaEditada"
     />
   </div>
 </template>
 
-<script>
-import { DeletarEtiqueta, ListarEtiquetas } from 'src/service/etiquetas'
-import ModalEtiqueta from './ModalEtiqueta'
-export default {
-  name: 'Etiquetas',
-  components: {
-    ModalEtiqueta
-  },
-  data () {
-    return {
-      userProfile: 'user',
-      etiquetaEdicao: {},
-      modalEtiqueta: false,
-      etiquetas: [],
-      pagination: {
-        rowsPerPage: 40,
-        rowsNumber: 0,
-        lastIndex: 0
-      },
-      loading: false,
-      columns: [
-        { name: 'id', label: '#', field: 'id', align: 'left' },
-        { name: 'tag', label: 'Etiqueta', field: 'tag', align: 'left' },
-        { name: 'color', label: 'Cor', field: 'color', align: 'center' },
-        { name: 'isActive', label: 'Ativo', field: 'isActive', align: 'center' },
-        { name: 'acoes', label: 'Ações', field: 'acoes', align: 'center' }
-      ]
-    }
-  },
-  methods: {
-    async listarEtiquetas () {
-      const { data } = await ListarEtiquetas()
-      this.etiquetas = data
-    },
-    etiquetaCriada (etiqueta) {
-      const newEtiquetas = [...this.etiquetas]
-      newEtiquetas.push(etiqueta)
-      this.etiquetas = [...newEtiquetas]
-    },
-    etiquetaEditada (etiqueta) {
-      const newEtiquetas = [...this.etiquetas]
-      const idx = newEtiquetas.findIndex(f => f.id === etiqueta.id)
-      if (idx > -1) {
-        newEtiquetas[idx] = etiqueta
-      }
-      this.etiquetas = [...newEtiquetas]
-    },
-    editarEtiqueta (etiqueta) {
-      this.etiquetaEdicao = { ...etiqueta }
-      this.modalEtiqueta = true
-    },
-    deletarEtiqueta (etiqueta) {
-      this.$q.dialog({
-        title: 'Atenção!!',
-        message: `Deseja realmente deletar a Etiqueta "${etiqueta.tag}"?`,
-        cancel: {
-          label: 'Não',
-          color: 'primary',
-          push: true
-        },
-        ok: {
-          label: 'Sim',
-          color: 'negative',
-          push: true
-        },
-        persistent: true
-      }).onOk(() => {
-        this.loading = true
-        DeletarEtiqueta(etiqueta)
-          .then(res => {
-            let newEtiquetas = [...this.etiquetas]
-            newEtiquetas = newEtiquetas.filter(f => f.id !== etiqueta.id)
+<script setup>
+import { ref, onMounted } from 'vue'
+import { useEtiquetas } from '../../composables/etiquetas/useEtiquetas'
+import ModalEtiqueta from './ModalEtiqueta.vue'
 
-            this.etiquetas = [...newEtiquetas]
-            this.$q.notify({
-              type: 'positive',
-              progress: true,
-              position: 'top',
-              message: `Etiqueta ${etiqueta.tag} deletada!`,
-              actions: [{
-                icon: 'close',
-                round: true,
-                color: 'white'
-              }]
-            })
-          })
-        this.loading = false
-      })
-    }
+// Estado
+const userProfile = ref(localStorage.getItem('profile'))
 
-  },
-  mounted () {
-    this.userProfile = localStorage.getItem('profile')
-    this.listarEtiquetas()
-  }
-}
+// Composables
+const {
+  etiquetas,
+  etiquetaEdicao,
+  modalEtiqueta,
+  loading,
+  pagination,
+  columns,
+  listarEtiquetas,
+  etiquetaCriada,
+  etiquetaEditada,
+  editarEtiqueta,
+  deletarEtiqueta,
+  handleAddEtiqueta
+} = useEtiquetas()
+
+// Lifecycle
+onMounted(() => {
+  listarEtiquetas()
+})
 </script>
 
 <style lang="scss" scoped>
+.etiquetas-page {
+  // Preview de cor
+  .color-preview {
+    min-width: 100px;
+    text-align: center;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    transition: all 0.3s ease;
+
+    &:hover {
+      transform: scale(1.05);
+    }
+  }
+
+  // Tabela
+  .my-sticky-dynamic {
+    // Cabeçalho fixo
+    .q-table__top,
+    .q-table__bottom,
+    thead tr:first-child th {
+      background-color: #fff;
+      transition: background-color 0.3s ease;
+    }
+
+    thead tr th {
+      position: sticky;
+      z-index: 1;
+    }
+
+    thead tr:last-child th {
+      top: 48px;
+    }
+
+    thead tr:first-child th {
+      top: 0;
+    }
+  }
+
+  // Botões
+  .q-btn {
+    opacity: 0.8;
+    transition: all 0.3s ease;
+
+    &:hover {
+      opacity: 1;
+      transform: scale(1.05);
+    }
+  }
+}
+
+// Tema escuro
+:deep(.body--dark) {
+  .etiquetas-page {
+    .my-sticky-dynamic {
+      .q-table__top,
+      .q-table__bottom,
+      thead tr:first-child th {
+        background-color: $dark;
+      }
+    }
+
+    .color-preview {
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+  }
+}
 </style>

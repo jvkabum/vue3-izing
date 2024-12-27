@@ -1,882 +1,376 @@
 <template>
-  <div class="q-pa-sm">
+  <div class="dashboard q-pa-sm">
+    <!-- Cabeçalho -->
     <q-card class="q-my-md">
       <q-card-section class="row justify-between items-center">
+        <!-- Título -->
         <div class="col-xs-12 col-md-3 text-h4 text-bold text-center text-md-left">
           Painel de Controle
         </div>
-        <div class="col-xs-12 col-md-9 justify-end flex q-gutter-sm text-center text-md-right q-my-md rdsPainelDate">
-          <div class="q-mb-sm">
-            <q-datetime-picker
-              style="width: 200px"
-              dense
-              hide-bottom-space
-              outlined
-              stack-label
-              bottom-slots
-              label="Data/Hora Agendamento"
-              mode="date"
-              color="primary"
-              format24h
-              v-model="params.startDate"
-            />
-          </div>
-          <div class="q-mb-sm">
-            <q-datetime-picker
-              style="width: 200px"
-              dense
-              hide-bottom-space
-              outlined
-              stack-label
-              bottom-slots
-              label="Data/Hora Agendamento"
-              mode="date"
-              color="primary"
-              format24h
-              v-model="params.endDate"
-            />
-          </div>
-          <!-- <div class="q-mb-sm">
-            <q-select
-              style="width: 300px"
-              dense
-              outlined
-              hide-bottom-space
-              emit-value
-              map-options
-              multiple
-              options-dense
-              use-chips
-              label="SETORES"
-              color="primary"
-              v-model="params.queuesIds"
-              :options="filas"
-              :input-debounce="700"
-              option-value="id"
-              option-label="queue"
-              input-style="width: 280px; max-width: 280px;"
-            />
-          </div>
-          <div class="q-mb-sm">
-            <q-select
-              style="width: 300px"
-              dense
-              outlined
-              hide-bottom-space
-              emit-value
-              map-options
-              multiple
-              options-dense
-              use-chips
-              label="USUÁRIOS"
-              color="primary"
-              v-model="params.userIds"
-              :options="usuarios"
-              :input-debounce="700"
-              option-value="id"
-              option-label="name"
-              input-style="width: 280px; max-width: 280px;"
-            />
-          </div> -->
+
+        <!-- Filtros -->
+        <div class="col-xs-12 col-md-9 row justify-end q-gutter-sm">
+          <!-- Data Inicial -->
+          <q-datetime-picker
+            v-model="params.startDate"
+            class="date-picker"
+            dense
+            outlined
+            label="Data Inicial"
+            mode="date"
+            color="primary"
+            format24h
+          />
+
+          <!-- Data Final -->
+          <q-datetime-picker
+            v-model="params.endDate"
+            class="date-picker"
+            dense
+            outlined
+            label="Data Final"
+            mode="date"
+            color="primary"
+            format24h
+          />
+
+          <!-- Botão Atualizar -->
           <q-btn
-            class="bg-padrao q-mb-sm"
-            flat
             color="primary"
             icon="refresh"
-            label="Gerar"
+            label="Atualizar"
             @click="getDashData"
-          />
-          <q-toggle
-            v-if="grupoAtivo === 'disabled'"
-            v-model="toggleValue"
-            checked-icon="check"
-            unchecked-icon="clear"
-            @input="handleGroups"
-            :color="toggleValue ? 'green' : 'negative'"
-            size="md"
-            >
-            <q-tooltip anchor="bottom middle" self="top middle">
-              <span>Filtrar Grupos</span>
-            </q-tooltip>
-          </q-toggle>
+          >
+            <q-tooltip>Atualizar dados</q-tooltip>
+          </q-btn>
         </div>
-
       </q-card-section>
     </q-card>
+
+    <!-- Cards de Métricas -->
     <q-card class="q-my-md q-pa-sm">
-      <q-card-section class="q-pa-md">
-        <div class="row q-gutter-md justify-center">
-          <div class="col-xs-12 col-sm-shrink">
-            <q-card
-              flat
-              bordered
-              class="my-card full-height"
-              style="min-width: 200px; background-color: #05d69e; color: white"
-            >
-              <q-card-section class="text-center ">
-                <p class="text-h4 text-bold text-center"> {{ ticketsAndTimes.qtd_total_atendimentos }} </p>
-                <q-icon name="verified" size="lg" color="white" class="text-white" />
-                Total Atendimentos
-              </q-card-section>
-            </q-card>
+      <q-card-section>
+        <div class="row q-col-gutter-md justify-center">
+          <!-- Total Atendimentos -->
+          <div class="col-xs-12 col-sm-6 col-md-4 col-lg-2">
+            <metric-card
+              title="Total Atendimentos"
+              :value="ticketsAndTimes.qtd_total_atendimentos"
+              icon="verified"
+              color="positive"
+            />
           </div>
-          <div class="col-xs-12 col-sm-shrink">
-            <q-card
-              flat
-              bordered
-              class="my-card full-height"
-              style="min-width: 200px; background-color: #faad42; color: white"
-            >
-              <q-card-section class="text-center">
-                <p class="text-h4 text-bold text-center"> {{ ticketsAndTimes.qtd_demanda_ativa }} </p>
-                <q-icon name="mdi-comment-processing-outline" size="lg" color="white" class="text-white" />
-                Ativo
-              </q-card-section>
-            </q-card>
+
+          <!-- Demanda Ativa -->
+          <div class="col-xs-12 col-sm-6 col-md-4 col-lg-2">
+            <metric-card
+              title="Demanda Ativa"
+              :value="ticketsAndTimes.qtd_demanda_ativa"
+              icon="mdi-comment-processing-outline"
+              color="warning"
+            />
           </div>
-          <div class="col-xs-12 col-sm-shrink">
-            <q-card
-              flat
-              bordered
-              class="my-card full-height"
-              style="min-width: 200px; background-color: #0398e2; color: white"
-            >
-              <q-card-section class="text-center">
-                <p class="text-h4 text-bold text-center"> {{ ticketsAndTimes.qtd_demanda_receptiva }} </p>
-                <q-icon name="mdi-arrow-left-bold" size="lg" color="white" class="text-white" />
-                Receptivo
-              </q-card-section>
-            </q-card>
+
+          <!-- Demanda Receptiva -->
+          <div class="col-xs-12 col-sm-6 col-md-4 col-lg-2">
+            <metric-card
+              title="Demanda Receptiva"
+              :value="ticketsAndTimes.qtd_demanda_receptiva"
+              icon="mdi-arrow-left-bold"
+              color="info"
+            />
           </div>
-          <div class="col-xs-12 col-sm-shrink">
-            <q-card
-              flat
-              bordered
-              class="my-card full-height"
-              style="min-width: 200px; background-color: #0398e2; color: white"
-            >
-              <q-card-section class="text-center">
-                <p class="text-h4 text-bold text-center"> {{ ticketsAndTimes.new_contacts }} </p>
-                <q-icon name="mdi-contacts-outline" size="lg" color="white" class="text-white" />
-                Novos Contatos
-              </q-card-section>
-            </q-card>
+
+          <!-- Novos Contatos -->
+          <div class="col-xs-12 col-sm-6 col-md-4 col-lg-2">
+            <metric-card
+              title="Novos Contatos"
+              :value="ticketsAndTimes.new_contacts"
+              icon="mdi-contacts-outline"
+              color="info"
+            />
           </div>
-          <div class="col-xs-12 col-sm-4 col-md-3 col-lg-2">
-            <q-card flat bordered class="my-card full-height" style="background-color: #ffa880; color: white">
-              <q-card-section class="text-center">
-                <p class="text-h5 text-bold text-center">
-                  <q-icon name="mdi-clock-outline" size="lg" color="white" class="text-white" />
-                  {{ cTmaFormat }}
-                </p>
-                Tempo Médio de Atendimento (TMA)
-              </q-card-section>
-            </q-card>
+
+          <!-- TMA -->
+          <div class="col-xs-12 col-sm-6 col-md-4 col-lg-2">
+            <metric-card
+              title="Tempo Médio de Atendimento"
+              :value="tmaFormatted"
+              icon="mdi-clock-outline"
+              color="orange"
+              subtitle="TMA"
+            />
           </div>
-          <div class="col-xs-12 col-sm-4 col-md-3 col-lg-2">
-            <q-card flat bordered class="my-card full-height" style="background-color: #fc5881ff; color: white">
-              <q-card-section class="text-center">
-                <p class="text-h5 text-bold text-center">
-                  <q-icon name="mdi-timer-sand" size="lg" color="white" class="text-white" />
-                  {{ cTmeFormat }}
-                Tempo Médio 1º Resposta
-              </q-card-section>
-            </q-card>
+
+          <!-- TME -->
+          <div class="col-xs-12 col-sm-6 col-md-4 col-lg-2">
+            <metric-card
+              title="Tempo Médio 1ª Resposta"
+              :value="tmeFormatted"
+              icon="mdi-timer-sand"
+              color="pink"
+              subtitle="TME"
+            />
           </div>
         </div>
       </q-card-section>
     </q-card>
 
+    <!-- Gráficos -->
     <div class="row q-col-gutter-md">
+      <!-- Atendimentos por Canal -->
       <div class="col-xs-12 col-sm-6">
         <q-card>
-          <q-card-section class="q-pa-md">
-            <ApexChart
-              ref="ChartTicketsChannels"
+          <q-card-section>
+            <apex-chart
+              ref="chartTicketsChannels"
               type="pie"
               height="300"
-              width="100%"
-              :options="ticketsChannelsOptions"
-              :series="ticketsChannelsOptions.series"
+              :options="chartOptions.channels"
+              :series="chartData.channels.series"
             />
           </q-card-section>
         </q-card>
       </div>
+
+      <!-- Atendimentos por Fila -->
       <div class="col-xs-12 col-sm-6">
         <q-card>
-          <q-card-section class="q-pa-md">
-            <ApexChart
-              ref="ChartTicketsQueue"
+          <q-card-section>
+            <apex-chart
+              ref="chartTicketsQueue"
               type="pie"
               height="300"
-              width="100%"
-              :options="ticketsQueueOptions"
-              :series="ticketsQueueOptions.series"
+              :options="chartOptions.queues"
+              :series="chartData.queues.series"
             />
           </q-card-section>
         </q-card>
       </div>
     </div>
+
+    <!-- Evolução por Canal -->
     <q-card class="q-my-md">
       <q-card-section>
-        <ApexChart
-          ref="ChartTicketsEvolutionChannels"
+        <apex-chart
+          ref="chartEvolutionChannels"
           type="bar"
           height="300"
-          width="100%"
-          :options="ticketsEvolutionChannelsOptions"
-          :series="ticketsEvolutionChannelsOptions.series"
-        />
-      </q-card-section>
-    </q-card>
-    <q-card class="q-my-md">
-      <q-card-section class="q-pa-md">
-        <ApexChart
-          ref="ChartTicketsEvolutionByPeriod"
-          type="line"
-          height="300"
-          :options="ticketsEvolutionByPeriodOptions"
-          :series="ticketsEvolutionByPeriodOptions.series"
+          :options="chartOptions.evolution"
+          :series="chartData.evolution.series"
         />
       </q-card-section>
     </q-card>
 
-    <q-card class="q-my-md q-pa-sm">
-      <q-card-section class="q-pa-md">
+    <!-- Evolução por Período -->
+    <q-card class="q-my-md">
+      <q-card-section>
+        <apex-chart
+          ref="chartEvolutionPeriod"
+          type="line"
+          height="300"
+          :options="chartOptions.period"
+          :series="chartData.period.series"
+        />
+      </q-card-section>
+    </q-card>
+
+    <!-- Tabela de Performance -->
+    <q-card class="q-my-md">
+      <q-card-section>
         <q-table
-          title="Performance Usuários"
+          title="Performance por Usuário"
           :data="ticketsPerUsersDetail"
-          :columns="TicketsPerUsersDetailColumn"
+          :columns="userColumns"
+          :pagination="paginationTableUser"
           row-key="email"
-          :pagination.sync="paginationTableUser"
-          :rows-per-page-options="[0]"
-          bordered
           flat
-          hide-bottom
+          bordered
         >
-          <template v-slot:body-cell-name="props">
+          <!-- Coluna Nome -->
+          <template #body-cell-name="props">
             <q-td :props="props">
-              <div class="row col text-bold"> {{ props.row.name || 'Não informado' }} </div>
-              <div class="row col text-caption">{{ props.row.email }} </div>
+              <div class="text-bold">{{ props.row.name || 'Não informado' }}</div>
+              <div class="text-caption">{{ props.row.email }}</div>
+            </q-td>
+          </template>
+
+          <!-- Colunas de Tempo -->
+          <template #body-cell-tma="props">
+            <q-td :props="props">
+              {{ formatDuration(props.value) }}
+            </q-td>
+          </template>
+
+          <template #body-cell-tme="props">
+            <q-td :props="props">
+              {{ formatDuration(props.value) }}
             </q-td>
           </template>
         </q-table>
-
       </q-card-section>
-
     </q-card>
-
   </div>
 </template>
 
-<script>
-import { groupBy } from 'lodash'
-import { ListarFilas } from 'src/service/filas'
-import {
-  GetDashTicketsAndTimes,
-  GetDashTicketsChannels,
-  GetDashTicketsEvolutionChannels,
-  GetDashTicketsQueue,
-  GetDashTicketsEvolutionByPeriod,
-  GetDashTicketsPerUsersDetail
-} from 'src/service/estatisticas'
-import { subDays, format, formatDuration, differenceInDays } from 'date-fns'
+<script setup>
+import { ref, onMounted, watch } from 'vue'
+import { useQuasar } from 'quasar'
+import { formatDuration } from 'date-fns'
 import ApexChart from 'vue-apexcharts'
+import { useDashboard } from '../../composables/dashboard/useDashboard'
+import MetricCard from './components/MetricCard.vue'
 
-export default {
-  name: 'IndexDashboard',
-  components: { ApexChart },
-  data () {
-    return {
-      confiWidth: {
-        horizontal: false,
-        width: this.$q.screen.width
-      },
-      params: {
-        startDate: format(subDays(new Date(), 6), 'yyyy-MM-dd'),
-        endDate: format(new Date(), 'yyyy-MM-dd'),
-        queuesIds: []
-      },
-      paginationTableUser: {
-        rowsPerPage: 40,
-        rowsNumber: 0,
-        lastIndex: 0
-      },
-      filas: [],
-      ticketsChannels: [],
-      ticketsChannelsOptions: {
-        // colors: ['#008FFB', '#00E396', '#FEB019'],
-        animations: {
-          enabled: true,
-          easing: 'easeinout',
-          speed: 1000
-        },
-        fill: {
-          type: 'gradient',
-          gradient: {
-            shade: 'dark',
-            type: 'vertical',
-            shadeIntensity: 0.05,
-            inverseColors: false,
-            opacityFrom: 1,
-            opacityTo: 0.9,
-            stops: [0, 100]
-          }
-        },
-        chart: {
-          toolbar: {
-            show: true
-          }
-        },
-        legend: {
-          position: 'bottom'
-        },
-        title: {
-          text: 'Atendimento por canal'
-        },
-        noData: {
-          text: 'Sem dados aqui!',
-          align: 'center',
-          verticalAlign: 'middle',
-          offsetX: 0,
-          offsetY: 0,
-          style: {
-            color: undefined,
-            fontSize: '14px',
-            fontFamily: undefined
-          }
-        },
-        series: [],
-        labels: [],
-        theme: {
-          mode: 'light',
-          palette: 'palette1'
-        },
-        plotOptions: {
-          pie: {
-            dataLabels: {
-              offset: -10
-            }
-          }
-        },
-        dataLabels: {
-          enabled: true,
-          textAnchor: 'middle',
-          style: {
-            fontSize: '16px',
-            offsetY: '150',
-            fontFamily: 'Helvetica, Arial, sans-serif'
-          },
-          offsetX: 0
-        }
-      },
-      ticketsQueue: [],
-      ticketsQueueOptions: {
-        // colors: ['#008FFB', '#00E396', '#FEB019'],
-        animations: {
-          enabled: true,
-          easing: 'easeinout',
-          speed: 1000
-        },
-        fill: {
-          type: 'gradient',
-          gradient: {
-            shade: 'dark',
-            type: 'vertical',
-            shadeIntensity: 0.05,
-            inverseColors: false,
-            opacityFrom: 1,
-            opacityTo: 0.9,
-            stops: [0, 100]
-          }
-        },
-        chart: {
-          toolbar: {
-            show: true
-          }
-        },
-        // responsive: [{
-        //   breakpoint: 480,
-        //   options: {
-        //     chart: {
-        //       width: 250
-        //     },
-        //     legend: {
-        //       position: 'bottom'
-        //     }
-        //   }
-        // }],
-        legend: {
-          position: 'bottom'
-        },
-        title: {
-          text: 'Atendimento por fila'
-        },
-        noData: {
-          text: 'Sem dados aqui!',
-          align: 'center',
-          verticalAlign: 'middle',
-          offsetX: 0,
-          offsetY: 0,
-          style: {
-            color: undefined,
-            fontSize: '14px',
-            fontFamily: undefined
-          }
-        },
-        series: [],
-        labels: [],
-        theme: {
-          mode: 'light',
-          palette: 'palette1'
-        },
-        plotOptions: {
-          pie: {
-            dataLabels: {
-              offset: -10
-            }
-          }
-        },
-        dataLabels: {
-          enabled: true,
-          textAnchor: 'middle',
-          style: {
-            fontSize: '16px',
-            offsetY: '150',
-            fontFamily: 'Helvetica, Arial, sans-serif'
-          },
-          offsetX: 0
-        }
-      },
-      ticketsEvolutionChannels: [],
-      ticketsEvolutionChannelsOptions: {
-        // colors: ['#008FFB', '#00E396', '#FEB019'],
-        animations: {
-          enabled: true,
-          easing: 'easeinout',
-          speed: 1000
-        },
-        chart: {
-          type: 'bar',
-          // height: 300,
-          stacked: true,
-          stackType: '100%',
-          toolbar: {
-            tools: {
-              download: true,
-              selection: false,
-              zoom: false,
-              zoomin: false,
-              zoomout: false,
-              pan: false,
-              reset: false | '<img src="/static/icons/reset.png" width="20">'
-            }
+const $q = useQuasar()
 
-          }
-        },
-        theme: {
-          mode: 'light',
-          palette: 'palette1'
-        },
-        grid: {
-          show: true,
-          strokeDashArray: 0
-        },
-        fill: {
-          type: 'gradient',
-          gradient: {
-            shade: 'dark',
-            type: 'vertical',
-            shadeIntensity: 0.05,
-            inverseColors: false,
-            opacityFrom: 1,
-            opacityTo: 0.9,
-            stops: [0, 100]
-          }
-        },
-        dataLabels: {
-          enabled: true
-        },
-        title: {
-          text: 'Evolução por canal',
-          align: 'left'
-        },
-        stroke: {
-          width: 0
-        },
-        // responsive: [{
-        //   breakpoint: 480,
-        //   options: {
-        //     chart: {
-        //       width: 250
-        //     },
-        //     legend: {
-        //       position: 'bottom'
-        //     }
-        //   }
-        // }],
-        xaxis: {
-          type: 'category',
-          categories: [],
-          tickPlacement: 'on'
-          // labels: {
-          //   formatter: function (value, timestamp, opts) {
-          //     return format(new Date(timestamp), 'dd/MM')
-          //     // return opts.dateFormatter().format('dd MMM')
-          //   }
-          // }
-          // type: 'datetime'
-          // format: 'dd/MM'
-          // datetimeFormatter: {
-          //   // year: 'yyyy',
-          //   month: 'MM',
-          //   day: 'DD'
-          //   // hour: 'HH:mm',
-          // }
-        },
-        yaxis: {
-          title: {
-            text: 'Atendimentos',
-            style: {
-              color: '#FFF'
-            }
-          }
-        },
-        tooltip: {
-          y: {
-            formatter: function (val) {
-              return Number(val).toFixed(0)
-            }
-          }
-        }
-      },
-      ticketsEvolutionByPeriod: [],
-      ticketsEvolutionByPeriodOptions: {
-        // colors: ['#008FFB', '#00E396', '#FEB019'],
-        animations: {
-          enabled: true,
-          easing: 'easeinout',
-          speed: 1000
-        },
-        theme: {
-          mode: 'light',
-          palette: 'palette1'
-        },
-        chart: {
-          toolbar: {
-            tools: {
-              download: true,
-              selection: false,
-              zoom: false,
-              zoomin: false,
-              zoomout: false,
-              pan: false,
-              reset: false | '<img src="/static/icons/reset.png" width="20">'
-            }
+// Composables
+const {
+  params,
+  filas,
+  configWidth,
+  ticketsAndTimes,
+  ticketsPerUsersDetail,
+  paginationTableUser,
+  tmaFormatted,
+  tmeFormatted,
+  chartConfig,
+  setConfigWidth,
+  listarFilas,
+  getDashData
+} = useDashboard()
 
-          }
-        },
-        grid: {
-          show: true,
-          strokeDashArray: 0,
-          xaxis: {
-            lines: {
-              show: true
-            }
-          }
-        },
-        stroke: {
-          width: [4, 4, 4]
-        },
-        fill: {
-          type: 'gradient',
-          gradient: {
-            shade: 'dark',
-            type: 'vertical',
-            shadeIntensity: 0.05,
-            inverseColors: false,
-            opacityFrom: 1,
-            opacityTo: 0.9,
-            stops: [0, 100]
-          }
-        },
-        title: {
-          text: 'Evolução atendimentos',
-          align: 'left'
-        },
-        dataLabels: {
-          enabled: true,
-          enabledOnSeries: [1]
-        },
-        xaxis: {
-          categories: []
-        },
-        yaxis: {
-          title: {
-            text: 'Atendimentos'
-          }
-        },
-        tooltip: {
-          shared: false,
-          x: {
-            show: false
-          },
-          y: {
-            formatter: function (val) {
-              return Number(val).toFixed(0)
-            }
-          }
-        },
-        legend: {
-          show: false
-        }
-      },
-      ticketsAndTimes: {
-        qtd_total_atendimentos: null,
-        qtd_demanda_ativa: null,
-        qtd_demanda_receptiva: null,
-        tma: null,
-        tme: null
-      },
-      ticketsPerUsersDetail: [],
-      TicketsPerUsersDetailColumn: [
-        {
-          name: 'name',
-          label: 'Usuário',
-          field: 'name',
-          align: 'left',
-          style: 'width: 300px;',
-          format: (v, r) => {
-            return v ? `${r.name} | ${r.email}` : 'Não informado'
-          }
-        },
-        {
-          name: 'qtd_pendentes',
-          label: 'Pendentes',
-          field: 'qtd_pendentes'
-        },
-        {
-          name: 'qtd_em_atendimento',
-          label: 'Atendendo',
-          field: 'qtd_em_atendimento'
-        },
-        {
-          name: 'qtd_resolvidos',
-          label: 'Finalizados',
-          field: 'qtd_resolvidos'
-        },
-        {
-          name: 'qtd_por_usuario',
-          label: 'Total',
-          field: 'qtd_por_usuario'
-        },
-        {
-          name: 'tme',
-          label: 'T.M.E',
-          field: 'tme',
-          align: 'center',
-          headerStyle: 'text-align: center !important',
-          format: v => {
-            return formatDuration(v) || ''
-          }
-        },
-        {
-          name: 'tma',
-          label: 'T.M.A',
-          field: 'tma',
-          align: 'center',
-          headerStyle: 'text-align: center !important',
-          format: v => {
-            return formatDuration(v) || ''
-          }
-        }
-      ]
-    }
+// Colunas da tabela de usuários
+const userColumns = [
+  {
+    name: 'name',
+    label: 'Usuário',
+    field: 'name',
+    align: 'left',
+    style: 'width: 300px'
   },
-  watch: {
-    '$q.dark.isActive' () {
-      // necessário para carregar os gráficos com a alterçaão do mode (dark/light)
-      this.$router.go()
-    },
-    '$q.screen.width' () {
-      // necessário para carregar os gráficos com a alterçaão do mode (dark/light)
-      this.setConfigWidth()
-    }
+  {
+    name: 'qtd_pendentes',
+    label: 'Pendentes',
+    field: 'qtd_pendentes',
+    align: 'center'
   },
-  computed: {
-    cTmaFormat () {
-      const tma = this.ticketsAndTimes.tma || {}
-      return formatDuration(tma) || ''
-    },
-    cTmeFormat () {
-      const tme = this.ticketsAndTimes.tme || {}
-      return formatDuration(tme) || ''
-    }
+  {
+    name: 'qtd_em_atendimento',
+    label: 'Em Atendimento',
+    field: 'qtd_em_atendimento',
+    align: 'center'
   },
-  methods: {
-    async listarFilas () {
-      const { data } = await ListarFilas()
-      this.filas = data
-    },
-    setConfigWidth () {
-      const diffDays = differenceInDays(new Date(this.params.endDate), new Date(this.params.startDate))
-      if (diffDays > 30) {
-        this.configWidth = { horizontal: true, width: 2200 }
-      } else {
-        const actualWidth = this.$q.screen.width
-        this.configWidth = { horizontal: true, width: actualWidth - (actualWidth < 768 ? 40 : 100) }
-      }
-    },
-    getDashTicketsAndTimes () {
-      GetDashTicketsAndTimes(this.params).then(res => {
-        this.ticketsAndTimes = res.data[0]
-      })
-        .catch(err => {
-          console.error(err)
-        })
-    },
-    getDashTicketsQueue () {
-      GetDashTicketsQueue(this.params).then(res => {
-        this.ticketsQueue = res.data
-        const series = []
-        const labels = []
-        this.ticketsQueue.forEach(e => {
-          series.push(+e.qtd)
-          labels.push(e.label)
-        })
-        this.ticketsQueueOptions.series = series
-        this.ticketsQueueOptions.labels = labels
-        this.$refs.ChartTicketsQueue.updateOptions(this.ticketsQueueOptions)
-        this.$refs.ChartTicketsQueue.updateSeries(series, true)
-      })
-        .catch(err => {
-          console.error(err)
-        })
-    },
-    getDashTicketsChannels () {
-      GetDashTicketsChannels(this.params).then(res => {
-        this.ticketsChannels = res.data
-        const series = []
-        const labels = []
-        this.ticketsChannels.forEach(e => {
-          series.push(+e.qtd)
-          labels.push(e.label)
-        })
-        this.ticketsChannelsOptions.series = series
-        this.ticketsChannelsOptions.labels = labels
-        this.$refs.ChartTicketsChannels.updateOptions(this.ticketsChannelsOptions)
-        this.$refs.ChartTicketsChannels.updateSeries(series, true)
-      })
-        .catch(err => {
-          console.error(err)
-        })
-    },
-    getDashTicketsEvolutionChannels () {
-      GetDashTicketsEvolutionChannels(this.params)
-        .then(res => {
-          this.ticketsEvolutionChannels = res.data
-          const dataLabel = groupBy({ ...this.ticketsEvolutionChannels }, 'dt_referencia')
-          const labels = Object.keys(dataLabel)
-          // .map(l => {
-          //   return format(new Date(l), 'dd/MM')
-          // })
-          this.ticketsEvolutionChannelsOptions.labels = labels
-          this.ticketsEvolutionChannelsOptions.xaxis.categories = labels
-          const series = []
-          const dados = groupBy({ ...this.ticketsEvolutionChannels }, 'label')
-          for (const item in dados) {
-            series.push({
-              name: item,
-              // type: 'line',
-              data: dados[item].map(d => {
-                // if (labels.includes(format(new Date(d.dt_ref), 'dd/MM'))) {
-                return d.qtd
-              })
-            })
-          }
-          this.ticketsEvolutionChannelsOptions.series = series
-          this.$refs.ChartTicketsEvolutionChannels.updateOptions(this.ticketsEvolutionChannelsOptions)
-          this.$refs.ChartTicketsEvolutionChannels.updateSeries(series, true)
-        })
-        .catch(error => {
-          console.error(error)
-        })
-    },
-    getDashTicketsEvolutionByPeriod () {
-      GetDashTicketsEvolutionByPeriod(this.params)
-        .then(res => {
-          this.ticketsEvolutionByPeriod = res.data
-          const series = [{
-            name: 'Atendimentos',
-            type: 'column',
-            data: []
-          }, {
-            type: 'line',
-            data: []
-          }
-          ]
-          const labels = []
-          this.ticketsEvolutionByPeriod.forEach(e => {
-            series[0].data.push(+e.qtd)
-            labels.push(e.label)
-          })
-          series[1].data = series[0].data
-          this.ticketsEvolutionByPeriodOptions.labels = labels
-          this.ticketsEvolutionByPeriodOptions.series = series
-          this.$refs.ChartTicketsEvolutionByPeriod.updateOptions(this.ticketsEvolutionByPeriodOptions)
-          this.$refs.ChartTicketsEvolutionByPeriod.updateSeries(series, true)
-        })
-        .catch(error => {
-          console.error(error)
-        })
-    },
-    getDashTicketsPerUsersDetail () {
-      GetDashTicketsPerUsersDetail(this.params)
-        .then(res => {
-          this.ticketsPerUsersDetail = res.data
-        })
-        .catch(error => {
-          console.error(error)
-        })
-    },
-    getDashData () {
-      this.setConfigWidth()
-      this.getDashTicketsAndTimes()
-      this.getDashTicketsChannels()
-      this.getDashTicketsEvolutionChannels()
-      this.getDashTicketsQueue()
-      this.getDashTicketsEvolutionByPeriod()
-      this.getDashTicketsPerUsersDetail()
-    }
-
+  {
+    name: 'qtd_resolvidos',
+    label: 'Resolvidos',
+    field: 'qtd_resolvidos',
+    align: 'center'
   },
-  beforeMount () {
-    const mode = this.$q.dark.isActive ? 'dark' : 'light'
-    const theme = {
-      mode,
-      palette: 'palette1',
-      monochrome: {
-        enabled: true,
-        color: '#0288d1',
-        shadeTo: mode,
-        shadeIntensity: 0.95
-      }
-
-    }
-    this.ticketsQueueOptions = { ...this.ticketsQueueOptions, theme }
-    this.ticketsChannelsOptions = { ...this.ticketsChannelsOptions, theme }
-    this.ticketsEvolutionChannelsOptions = { ...this.ticketsEvolutionChannelsOptions, theme }
-    this.ticketsEvolutionByPeriodOptions = { ...this.ticketsEvolutionByPeriodOptions, theme }
+  {
+    name: 'qtd_por_usuario',
+    label: 'Total',
+    field: 'qtd_por_usuario',
+    align: 'center'
   },
-  mounted () {
-    this.listarFilas()
-    this.getDashData()
+  {
+    name: 'tme',
+    label: 'TME',
+    field: 'tme',
+    align: 'center'
+  },
+  {
+    name: 'tma',
+    label: 'TMA',
+    field: 'tma',
+    align: 'center'
   }
-}
+]
+
+// Configurações dos gráficos
+const chartOptions = ref({
+  channels: {
+    ...chartConfig,
+    title: { text: 'Atendimentos por Canal' }
+  },
+  queues: {
+    ...chartConfig,
+    title: { text: 'Atendimentos por Fila' }
+  },
+  evolution: {
+    ...chartConfig,
+    title: { text: 'Evolução por Canal' }
+  },
+  period: {
+    ...chartConfig,
+    title: { text: 'Evolução por Período' }
+  }
+})
+
+// Dados dos gráficos
+const chartData = ref({
+  channels: { series: [] },
+  queues: { series: [] },
+  evolution: { series: [] },
+  period: { series: [] }
+})
+
+// Watchers
+watch(() => $q.dark.isActive, () => {
+  // Atualiza tema dos gráficos
+  const theme = {
+    mode: $q.dark.isActive ? 'dark' : 'light',
+    palette: 'palette1'
+  }
+  Object.keys(chartOptions.value).forEach(key => {
+    chartOptions.value[key].theme = theme
+  })
+})
+
+watch(() => $q.screen.width, () => {
+  setConfigWidth()
+})
+
+// Lifecycle
+onMounted(() => {
+  listarFilas()
+  getDashData()
+})
 </script>
 
-<style lang="scss" >
-.apexcharts-theme-dark svg {
-  background: none !important;
+<style lang="scss" scoped>
+.dashboard {
+  // Datepickers
+  .date-picker {
+    width: 200px;
+    
+    :deep(.q-field__control) {
+      padding: 0 8px;
+    }
+  }
+
+  // Cards
+  .q-card {
+    transition: all 0.3s ease;
+
+    &:hover {
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+  }
+
+  // Gráficos
+  :deep(.apexcharts-theme-dark) {
+    .apexcharts-svg {
+      background: transparent !important;
+    }
+  }
+}
+
+// Tema escuro
+:deep(.body--dark) {
+  .dashboard {
+    .q-card:hover {
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+  }
 }
 </style>

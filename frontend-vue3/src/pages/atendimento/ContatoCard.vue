@@ -10,47 +10,29 @@
   </div>
 </template>
 
-<script>
-export default {
-  name: 'ContatoCard',
-  props: {
-    mensagem: {
-      type: Object,
-      required: true
-    }
-  },
-  data () {
-    return {
-      parsedContact: {}
-    }
-  },
-  methods: {
-    parseVCard (vcard) {
-      const lines = vcard.split('\n')
-      const contact = {
-        name: '',
-        number: '',
-        photo: ''
-      }
-      lines.forEach(line => {
-        if (line.startsWith('FN:')) {
-          contact.name = line.substring(3)
-        } else if (line.startsWith('TEL') || line.includes('.TEL')) {
-          contact.number = line.split(':')[1]
-        } else if (line.startsWith('PHOTO;BASE64')) {
-          contact.photo = line.split(':')[1]
-        }
-      })
-      return contact
-    },
-    addContact (contact) {
-      this.$emit('openContactModal', contact)
-    }
-  },
-  mounted () {
-    this.parsedContact = this.parseVCard(this.mensagem.body)
+<script setup>
+import { ref, onMounted } from 'vue'
+import { useContato } from '../../composables/useContato'
+
+const props = defineProps({
+  mensagem: {
+    type: Object,
+    required: true
   }
-}
+})
+
+const { parseVCard } = useContato()
+const parsedContact = ref({
+  name: '',
+  number: '',
+  photo: ''
+})
+
+onMounted(() => {
+  if (props.mensagem?.body) {
+    parsedContact.value = parseVCard(props.mensagem.body)
+  }
+})
 </script>
 
 <style scoped>

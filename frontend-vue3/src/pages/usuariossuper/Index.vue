@@ -1,207 +1,255 @@
 <template>
-  <div v-if="userProfile === 'super'">
+  <div v-if="userProfile === 'super'" class="usuarios-super">
     <q-table
       class="my-sticky-dynamic q-ma-lg"
-      title="Usuarios"
+      title="Usuários"
       :data="usuarios"
       :columns="columns"
       :loading="loading"
       row-key="id"
-      :pagination.sync="pagination"
+      :pagination="pagination"
       virtual-scroll
       :virtual-scroll-item-size="48"
       :virtual-scroll-sticky-size-start="48"
       @virtual-scroll="onScroll"
       :rows-per-page-options="[0]"
     >
-      <template v-slot:top-right>
-        <q-input
-          style="width: 300px"
-          outlined
-          rounded
-          dense
-          class="col-grow"
-          debounce="500"
-          v-model="filter"
-          clearable
-          placeholder="Localize"
-          @input="filtrarUsuario"
-        >
-          <template v-slot:prepend>
-            <q-icon name="search" />
-          </template>
-        </q-input>
-         <q-btn
-          rounded
-          class="q-ml-md col"
-          :class="{
-            'q-ml-none q-mt-md q-mr-md': $q.screen.width < 500
-          }"
-          color="primary"
-          label="Adicionar"
-          @click="usuarioSelecionado = {}; modalUsuario = true"
-          />
+      <!-- Cabeçalho -->
+      <template #top-right>
+        <div class="row q-gutter-md items-center">
+          <!-- Busca -->
+          <q-input
+            v-model="filter"
+            outlined
+            rounded
+            dense
+            debounce="500"
+            placeholder="Buscar usuário"
+            clearable
+            class="col-grow"
+            style="min-width: 300px"
+            @update:model-value="filtrarUsuario"
+          >
+            <template #prepend>
+              <q-icon name="search" />
+            </template>
+            <template #append v-if="filter">
+              <q-icon name="close" class="cursor-pointer" @click="filter = null; filtrarUsuario(null)" />
+            </template>
+          </q-input>
 
+          <!-- Botão Adicionar -->
+          <q-btn
+            color="primary"
+            icon="add"
+            label="Adicionar"
+            rounded
+            @click="handleAddUsuario"
+          >
+            <q-tooltip>Adicionar novo usuário</q-tooltip>
+          </q-btn>
+        </div>
       </template>
-      <template v-slot:body-cell-acoes="props">
+
+      <!-- Coluna Empresa -->
+      <template #body-cell-tenantId="props">
+        <q-td>
+          <div class="tenant-content">
+            {{ props.value ? `${props.value.id} - ${props.value.name}` : '' }}
+            <q-tooltip v-if="props.value">
+              {{ `${props.value.id} - ${props.value.name}` }}
+            </q-tooltip>
+          </div>
+        </q-td>
+      </template>
+
+      <!-- Coluna Ações -->
+      <template #body-cell-acoes="props">
         <q-td class="text-center">
           <q-btn
             flat
             round
             icon="edit"
+            color="warning"
             @click="editarUsuario(props.row)"
-          />
+          >
+            <q-tooltip>Editar usuário</q-tooltip>
+          </q-btn>
         </q-td>
       </template>
-      <template v-slot:pagination="{ pagination }">
-        {{ usuarios.length }}/{{ pagination.rowsNumber }}
+
+      <!-- Paginação -->
+      <template #pagination="{ pagination }">
+        <div class="row items-center justify-end">
+          {{ usuarios.length }}/{{ pagination.rowsNumber }}
+        </div>
+      </template>
+
+      <!-- Loading -->
+      <template #loading>
+        <q-inner-loading showing color="primary">
+          <q-spinner-dots size="50px" color="primary" />
+        </q-inner-loading>
+      </template>
+
+      <!-- Sem Dados -->
+      <template #no-data>
+        <div class="full-width row flex-center q-pa-md text-grey-8">
+          <q-icon name="mdi-account-off" size="2em" class="q-mr-sm" />
+          Nenhum usuário encontrado
+        </div>
       </template>
     </q-table>
+
+    <!-- Modais -->
     <ModalUsuario
-      :modalUsuario.sync="modalUsuario"
-      @modalUsuario:usuario-editado="UPDATE_USUARIO"
-      @modalUsuario:usuario-criado="usuarioCriado"
-      :usuarioEdicao.sync="usuarioSelecionado"
+      v-model="modalUsuario"
+      v-model:usuario-edicao="usuarioSelecionado"
+      @modal-usuario:usuario-editado="UPDATE_USUARIO"
+      @modal-usuario:usuario-criado="usuarioCriado"
     />
+
     <ModalUsuarioEdit
-      :modalUsuario.sync="modalUsuarioEdit"
-      @modalUsuario:usuario-editado="UPDATE_USUARIO"
-      :usuarioEdicao.sync="usuarioSelecionado"
+      v-model="modalUsuarioEdit"
+      v-model:usuario-edicao="usuarioSelecionado"
+      @modal-usuario:usuario-editado="UPDATE_USUARIO"
     />
   </div>
 </template>
 
-<script>
-// const userId = +localStorage.getItem('userId')
-import { AdminListarUsuarios } from 'src/service/user'
-import ModalUsuarioEdit from './ModalUsuarioedit'
-import ModalUsuario from './ModalUsuario'
-export default {
-  name: 'IndexUsuarios',
-  components: { ModalUsuario, ModalUsuarioEdit },
-  data () {
-    return {
-      userProfile: 'user',
-      usuarios: [],
-      usuarioSelecionado: {},
-      filas: [],
-      optionsProfile: [
-        { value: 'user', label: 'Usuário' },
-        { value: 'admin', label: 'Administrador' },
-        { value: 'super', label: 'Super' }
-      ],
-      modalUsuario: false,
-      modalUsuarioEdit: false,
-      filter: null,
-      pagination: {
-        rowsPerPage: 40,
-        rowsNumber: 0,
-        lastIndex: 0
-      },
-      params: {
-        pageNumber: 1,
-        searchParam: null,
-        hasMore: true
-      },
-      loading: false,
-      columns: [
-        { name: 'tenantId', label: 'Empresa', field: 'tenant', align: 'left', format: v => `${v.id} - ${v.name}` },
-        { name: 'id', label: 'ID', field: 'id', align: 'left' },
-        { name: 'name', label: 'Nome', field: 'name', align: 'left' },
-        { name: 'email', label: 'E-mail', field: 'email', align: 'left' },
-        { name: 'profile', label: 'Perfil', field: 'profile', align: 'left', format: (v) => this.optionsProfile.find(o => o.value == v).label },
-        { name: 'acoes', label: 'Ações', field: 'acoes', align: 'center' }
-      ]
-    }
-  },
-  methods: {
-    LOAD_USUARIOS (users) {
-      const newUsers = []
-      users.forEach(user => {
-        const userIndex = this.usuarios.findIndex(c => c.id === user.id)
-        if (userIndex !== -1) {
-          this.usuarios[userIndex] = user
-        } else {
-          newUsers.push(user)
-        }
-      })
-      const usersObj = [...this.usuarios, ...newUsers]
-      this.usuarios = usersObj.filter(usuario => usuario.profile !== 'super')
-    },
-    UPDATE_USUARIO (usuario) {
-      let newUsuarios = [...this.usuarios]
-      const usuarioIndex = newUsuarios.findIndex(c => c.id === usuario.id)
-      if (usuarioIndex !== -1) {
-        newUsuarios[usuarioIndex] = usuario
-      } else {
-        newUsuarios = [usuario, ...newUsuarios]
-      }
-      this.usuarios = [...newUsuarios]
-    },
-    DELETE_USUARIO (userId) {
-      const newObj = [...this.usuarios.filter(u => u.id !== userId)]
-      this.usuarios = [...newObj]
-    },
-    async listarUsuarios () {
-      this.loading = true
-      const { data } = await AdminListarUsuarios(this.params)
-      this.usuarios = data.users
-      this.LOAD_USUARIOS(data.users)
-      this.params.hasMore = data.hasMore
-      this.pagination.lastIndex = this.usuarios.length - 1
-      this.pagination.rowsNumber = data.count
-      this.loading = false
-    },
-    filtrarUsuario (data) {
-      this.usuarios = []
-      this.params.pageNumber = 1
-      this.params.searchParam = data
-      this.listarUsuarios()
-    },
-    onScroll ({ to, ref, ...all }) {
-      if (this.loading !== true && this.params.hasMore === true && to === this.pagination.lastIndex) {
-        this.params.pageNumber++
-        this.listarUsuarios()
-      }
-    },
-    usuarioCriado (usuario) {
-      this.usuarios.push(usuario)
-      this.listarUsuarios()
-    },
-    editarUsuario (usuario) {
-      this.usuarioSelecionado = usuario
-      this.modalUsuarioEdit = true
-    }
-  },
-  async mounted () {
-    await this.listarUsuarios()
-    this.userProfile = localStorage.getItem('profile')
-    // Ouça o evento 'usuario-editado'
-    this.$root.$on('usuario-editado', () => {
-      // Atualize a página aqui
-      this.listarUsuarios()
-    })
-  }
-}
+<script setup>
+import { ref, onMounted, onUnmounted } from 'vue'
+import { useUsuariosSuper } from '../../composables/usuariossuper/useUsuariosSuper'
+import ModalUsuario from './ModalUsuario.vue'
+import ModalUsuarioEdit from './ModalUsuarioEdit.vue'
+
+// Estado
+const userProfile = ref(localStorage.getItem('profile'))
+
+// Composables
+const {
+  loading,
+  usuarios,
+  usuarioSelecionado,
+  modalUsuario,
+  modalUsuarioEdit,
+  filter,
+  pagination,
+  params,
+  optionsProfile,
+  columns,
+  LOAD_USUARIOS,
+  UPDATE_USUARIO,
+  DELETE_USUARIO,
+  listarUsuarios,
+  filtrarUsuario,
+  onScroll,
+  usuarioCriado,
+  editarUsuario,
+  handleAddUsuario
+} = useUsuariosSuper()
+
+// Lifecycle
+onMounted(async () => {
+  await listarUsuarios()
+})
+
+onUnmounted(() => {
+  // Cleanup se necessário
+})
 </script>
 
-<style lang="sass" >
-.my-sticky-dynamic
-  /* height or max-height is important */
-  height: 85vh
+<style lang="scss" scoped>
+.usuarios-super {
+  // Tabela
+  .my-sticky-dynamic {
+    height: 85vh;
 
-  .q-table__top,
-  .q-table__bottom,
-  thead tr:first-child th /* bg color is important for th; just specify one */
-    background-color: #fff
+    // Cabeçalho fixo
+    .q-table__top,
+    .q-table__bottom,
+    thead tr:first-child th {
+      background-color: #fff;
+      transition: background-color 0.3s ease;
+    }
 
-  thead tr th
-    position: sticky
-    z-index: 1
-  /* this will be the loading indicator */
-  thead tr:last-child th
-    /* height of all previous header rows */
-    top: 63px
-  thead tr:first-child th
-    top: 0
+    thead tr th {
+      position: sticky;
+      z-index: 1;
+    }
+
+    thead tr:last-child th {
+      top: 63px;
+    }
+
+    thead tr:first-child th {
+      top: 0;
+    }
+  }
+
+  // Campo de busca
+  .q-input {
+    .q-field__control {
+      transition: all 0.3s ease;
+
+      &:hover {
+        border-color: var(--q-primary);
+      }
+    }
+  }
+
+  // Conteúdo da empresa
+  .tenant-content {
+    max-width: 300px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: all 0.3s ease;
+
+    &:hover {
+      opacity: 0.8;
+      cursor: help;
+    }
+  }
+
+  // Botões
+  .q-btn {
+    opacity: 0.9;
+    transition: all 0.3s ease;
+
+    &:hover {
+      opacity: 1;
+      transform: scale(1.05);
+    }
+  }
+}
+
+// Tema escuro
+:deep(.body--dark) {
+  .usuarios-super {
+    .my-sticky-dynamic {
+      .q-table__top,
+      .q-table__bottom,
+      thead tr:first-child th {
+        background-color: $dark;
+      }
+    }
+  }
+}
+
+// Responsividade
+@media (max-width: 599px) {
+  .usuarios-super {
+    .q-table {
+      .q-table__top {
+        flex-direction: column;
+        
+        .row {
+          width: 100%;
+          margin: 8px 0;
+        }
+      }
+    }
+  }
+}
 </style>
